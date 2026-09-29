@@ -1,0 +1,54 @@
+# =========================
+# Environment / Secrets
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Python
+# =========================
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.pyc
+
+# =========================
+# Local databases
+# =========================
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+backend/data/
+
+# =========================
+# Node / Frontend
+# =========================
+node_modules/
+dist/
+*.tsbuildinfo
+
+# =========================
+# Testing
+# =========================
+test-results/
+playwright-report/
+coverage/
+
+# =========================
+# Logs
+# =========================
+*.log
+logs/
+
+# =========================
+# IDE / OS
+# =========================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
