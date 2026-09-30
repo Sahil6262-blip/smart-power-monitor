@@ -4,6 +4,7 @@ import {
   AreaChart,
   Bar,
   BarChart,
+  Cell,
   CartesianGrid,
   ResponsiveContainer,
   Tooltip,
@@ -17,17 +18,18 @@ import { Radio } from 'lucide-react'
 
 export type Parameter = 'power' | 'voltage' | 'current' | 'frequency' | 'power_factor'
 export const parameters: Record<Parameter, { label: string; unit: string; color: string }> = {
-  power: { label: 'Active power', unit: 'W', color: '#b6ef83' },
-  voltage: { label: 'Voltage', unit: 'V', color: '#78b4fa' },
-  current: { label: 'Current', unit: 'A', color: '#b69cf5' },
-  frequency: { label: 'Frequency', unit: 'Hz', color: '#eebc72' },
-  power_factor: { label: 'Power factor', unit: '', color: '#72d8c5' },
+  power: { label: 'Active power', unit: 'W', color: '#ee8148' },
+  voltage: { label: 'Voltage', unit: 'V', color: '#527aee' },
+  current: { label: 'Current', unit: 'A', color: '#9565d9' },
+  frequency: { label: 'Frequency', unit: 'Hz', color: '#ca8b21' },
+  power_factor: { label: 'Power factor', unit: '', color: '#bf67a6' },
 }
 const tooltipStyle = {
-  background: '#1b242e',
-  border: '1px solid #34404e',
-  borderRadius: 10,
-  color: '#eef3f8',
+  background: '#ffffff',
+  border: '1px solid #e0e6f2',
+  borderRadius: 12,
+  boxShadow: '0 10px 30px #26396918',
+  color: '#25324b',
   fontSize: 12,
 }
 
@@ -69,11 +71,11 @@ export function TrendChart({
         <AreaChart data={data} margin={{ top: 12, right: 7, left: -19, bottom: 0 }}>
           <defs>
             <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={meta.color} stopOpacity={0.32} />
+              <stop offset="0%" stopColor={meta.color} stopOpacity={0.2} />
               <stop offset="95%" stopColor={meta.color} stopOpacity={0.005} />
             </linearGradient>
           </defs>
-          <CartesianGrid stroke="#27303a" strokeDasharray="3 5" vertical={false} />
+          <CartesianGrid stroke="#e9edf5" strokeDasharray="2 6" vertical={false} />
           <XAxis
             dataKey="x"
             type="number"
@@ -86,7 +88,7 @@ export function TrendChart({
             axisLine={false}
             tickLine={false}
             minTickGap={42}
-            tick={{ fill: '#768493', fontSize: 10 }}
+            tick={{ fill: '#7a879c', fontSize: 10 }}
             dy={10}
           />
           <YAxis
@@ -95,12 +97,13 @@ export function TrendChart({
             }
             axisLine={false}
             tickLine={false}
-            tick={{ fill: '#768493', fontSize: 10 }}
+            tick={{ fill: '#7a879c', fontSize: 10 }}
             tickFormatter={(v) =>
               number(v, parameter === 'power_factor' || parameter === 'current' ? 2 : 0)
             }
           />
           <Tooltip
+            cursor={{ stroke: '#9fadd580', strokeDasharray: '4 4' }}
             contentStyle={tooltipStyle}
             labelFormatter={(v) =>
               `${date(new Date(Number(v)).toISOString())} · ${time(new Date(Number(v)).toISOString(), true)}`
@@ -117,8 +120,8 @@ export function TrendChart({
             strokeWidth={2.5}
             fill={`url(#${id})`}
             isAnimationActive={false}
-            dot={false}
-            activeDot={{ r: 4, stroke: '#121a22', strokeWidth: 3 }}
+            dot={points.length === 1 ? { r: 4, fill: meta.color } : false}
+            activeDot={{ r: 5, fill: meta.color, stroke: '#ffffff', strokeWidth: 3 }}
           />
         </AreaChart>
       </ResponsiveContainer>
@@ -150,30 +153,37 @@ export function EnergyChart({
           margin={{ top: 10, right: 0, left: -20, bottom: 0 }}
           barCategoryGap="35%"
         >
-          <CartesianGrid stroke="#27303a" strokeDasharray="3 5" vertical={false} />
+          <CartesianGrid stroke="#e9edf5" strokeDasharray="2 6" vertical={false} />
           <XAxis
             dataKey="timestamp"
             tickFormatter={(v) => (hourly ? time(v) : date(v))}
             axisLine={false}
             tickLine={false}
             minTickGap={26}
-            tick={{ fill: '#768493', fontSize: 10 }}
+            tick={{ fill: '#7a879c', fontSize: 10 }}
             dy={10}
           />
-          <YAxis axisLine={false} tickLine={false} tick={{ fill: '#768493', fontSize: 10 }} />
+          <YAxis axisLine={false} tickLine={false} tick={{ fill: '#7a879c', fontSize: 10 }} />
           <Tooltip
-            cursor={{ fill: '#ffffff05' }}
+            cursor={{ fill: '#4263eb06' }}
             contentStyle={tooltipStyle}
             labelFormatter={(v) => `${date(String(v))} · ${time(String(v))}`}
             formatter={(v) => [`${number(Number(v), 3)} kWh`, 'Energy']}
           />
           <Bar
             dataKey="energy_kwh"
-            fill="#8fc7a2"
-            radius={[4, 4, 0, 0]}
+            fill="#8198f3"
+            radius={[5, 5, 0, 0]}
             maxBarSize={46}
             isAnimationActive={false}
-          />
+          >
+            {data.map((entry, index) => (
+              <Cell
+                key={entry.timestamp}
+                fill={index === data.length - 1 ? '#ee8148' : '#8198f3'}
+              />
+            ))}
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </div>

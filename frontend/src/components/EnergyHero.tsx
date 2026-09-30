@@ -1,69 +1,107 @@
-import { ArrowUpRight, Cable, Cpu, Radio, Zap } from 'lucide-react'
+import { ArrowUpRight, Cable, Clock3, Cpu, PlugZap, Zap } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useLive } from '../context/LiveContext'
-import { money, number } from '../utils/format'
+import { money, number, time } from '../utils/format'
 
 export function EnergyHero() {
   const { latest, status, device } = useLive()
+  const isLive = status === 'live'
   return (
-    <section className={`energy-hero hero-${status}`} aria-label="Energy control center">
-      <div className="hero-copy">
-        <div className="hero-overline">
-          <span /> THE POWER OF KNOWING
+    <section className="energy-overview-grid" aria-label="Energy at a glance">
+      <div className={`energy-flow-panel flow-${status}`}>
+        <div className="flow-heading">
+          <div>
+            <span className="eyebrow">THE BIG PICTURE</span>
+            <h2>Your energy, connected.</h2>
+          </div>
+          <span className="flow-source">
+            <span className="status-dot" />
+            {device?.source === 'demo'
+              ? 'Demo source'
+              : device?.source === 'hardware'
+                ? 'Single-phase AC'
+                : 'Connecting'}
+          </span>
         </div>
-        <h2>
-          Every watt.
-          <br />
-          <span>In your hands.</span>
-        </h2>
-        <p>A connected view of your energy, from the first reading to the bigger picture.</p>
-        <Link to="/live" className="hero-link">
-          Explore live monitoring <ArrowUpRight size={16} />
-        </Link>
+        <div className="energy-flow-diagram">
+          <svg
+            className="flow-wires"
+            viewBox="0 0 600 160"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            <path
+              className="wire-base"
+              d="M 75 80 H 180 Q 205 80 205 105 V 123 Q 205 137 225 137 H 255 M 345 137 H 375 Q 395 137 395 123 V 105 Q 395 80 420 80 H 525"
+            />
+            <path
+              className="wire-pulse"
+              d="M 75 80 H 180 Q 205 80 205 105 V 123 Q 205 137 225 137 H 255 M 345 137 H 375 Q 395 137 395 123 V 105 Q 395 80 420 80 H 525"
+            />
+          </svg>
+          <div className="flow-endpoint">
+            <div className="flow-node">
+              <Cable size={23} />
+            </div>
+            <strong>Main supply</strong>
+            <span>{latest ? `${number(latest.voltage, 1)} V` : 'Awaiting voltage'}</span>
+          </div>
+          <div className="flow-center">
+            <div className="flow-halo" aria-hidden="true" />
+            <div className="flow-meter">
+              <Zap size={18} />
+              <span className="flow-meter-label">ACTIVE POWER</span>
+              <strong>
+                {number(latest?.power, 1)}
+                <small>W</small>
+              </strong>
+              <span className={`flow-state ${isLive ? 'live' : ''}`}>
+                <span className="status-dot" />
+                {isLive ? 'Live demand' : latest ? 'Last known reading' : 'Awaiting signal'}
+              </span>
+            </div>
+          </div>
+          <div className="flow-endpoint">
+            <div className="flow-node">
+              <PlugZap size={23} />
+            </div>
+            <strong>Connected load</strong>
+            <span>{latest ? `${number(latest.current, 3)} A` : 'Awaiting current'}</span>
+          </div>
+        </div>
+        <div className="flow-footer">
+          <span>
+            <Cpu size={13} />
+            {device?.source === 'demo' ? 'Software simulator' : 'ESP32 / PZEM meter'}
+          </span>
+          <Link to="/live">
+            Explore live monitoring <ArrowUpRight size={14} />
+          </Link>
+        </div>
       </div>
-      <div className="energy-orbit" aria-hidden="true">
-        <div className="orbit-grid" />
-        <div className="orbit-ring outer" />
-        <div className="orbit-ring middle" />
-        <div className="orbit-ring inner" />
-        <div className="orbit-axis horizontal" />
-        <div className="orbit-axis vertical" />
-        <div className="orbit-satellite satellite-source">
-          <Cable size={17} />
+      <div className="daily-highlight">
+        <div className="daily-heading">
+          <span>TODAY’S ENERGY</span>
+          <span className="daily-symbol">
+            <Zap size={19} />
+          </span>
         </div>
-        <div className="orbit-satellite satellite-meter">
-          <Cpu size={17} />
+        <div className="daily-energy-value">
+          {number(latest?.today.energy_kwh, 2)}
+          <span>kWh</span>
         </div>
-        <div className="orbit-satellite satellite-signal">
-          <Radio size={17} />
-        </div>
-        <div className="orbit-core">
-          <Zap size={22} />
-          <strong>
-            {number(latest?.power, 0)}
-            <small>W</small>
-          </strong>
-          <span>{status === 'live' ? 'LIVE DEMAND' : 'AWAITING SIGNAL'}</span>
-        </div>
-        <div className="orbit-caption">
-          <span className={`status-dot ${status === 'live' ? 'pulse' : ''}`} />
-          {device?.source === 'demo' ? 'SIMULATED SOURCE' : 'ESP32 / PZEM'}
-        </div>
-      </div>
-      <div className="hero-totals">
-        <div className="hero-totals-heading">
-          <span>TODAY SO FAR</span>
-          <span className="hero-date-tag">kWh</span>
-        </div>
-        <strong className="hero-energy">{number(latest?.today.energy_kwh, 2)}</strong>
-        <span className="hero-energy-caption">Energy consumed</span>
-        <div className="hero-cost">
+        <p>Every reading adds to the bigger picture.</p>
+        <div className="daily-cost">
           <span>Estimated cost</span>
           <strong>{money(latest?.today.estimated_cost)}</strong>
         </div>
-        <div className="hero-status">
-          <span className="status-dot" />
-          {status === 'live' ? 'Receiving real-time measurements' : 'Ready when your device is'}
+        <div className="daily-footer">
+          <span>
+            <Clock3 size={12} /> Peak at {time(latest?.today.peak_time)}
+          </span>
+          <Link to="/consumption" aria-label="Explore consumption">
+            <ArrowUpRight size={18} />
+          </Link>
         </div>
       </div>
     </section>

@@ -1,39 +1,23 @@
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
-  Activity,
   ArrowUpRight,
   Bell,
   Bolt,
-  ChartNoAxesCombined,
+  ChevronDown,
   ChevronLeft,
   CircleHelp,
-  Cpu,
-  FileChartColumn,
-  History,
-  LayoutDashboard,
   Menu,
   Radio,
-  Settings2,
-  Sparkles,
   X,
   Zap,
 } from 'lucide-react'
 import { useLive } from '../context/LiveContext'
 import { date, time } from '../utils/format'
-import { Badge } from './UI'
-
-const navigation = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/live', label: 'Live monitoring', icon: Activity },
-  { to: '/consumption', label: 'Consumption', icon: ChartNoAxesCombined },
-  { to: '/insights', label: 'AI insights', icon: Sparkles },
-  { to: '/alerts', label: 'Alerts', icon: Bell },
-  { to: '/history', label: 'History', icon: History },
-  { to: '/reports', label: 'Reports', icon: FileChartColumn },
-  { to: '/device', label: 'Device status', icon: Cpu },
-  { to: '/settings', label: 'Settings', icon: Settings2 },
-]
+import { Badge, Loading } from './UI'
+import { CommandMenu } from './CommandMenu'
+import { navigation } from './navigation'
+import { API } from '../services/api'
 
 export function ConnectionBadge() {
   const { status } = useLive()
@@ -50,79 +34,146 @@ export function ConnectionBadge() {
 }
 
 export function Shell() {
-  const [collapsed, setCollapsed] = useState(false),
-    [mobile, setMobile] = useState(false)
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('wattwise-sidebar') === 'collapsed'
+    } catch {
+      return false
+    }
+  })
+  const [mobile, setMobile] = useState(false)
   const [now, setNow] = useState(new Date().toISOString())
   const { latest, device, status, storageError } = useLive()
   const location = useLocation()
+  const sidebar = useRef<HTMLElement>(null)
+  const menuButton = useRef<HTMLButtonElement>(null)
+  const activeCount = latest?.active_alert_count ?? device?.active_alerts ?? 0
   useEffect(() => {
     setMobile(false)
     window.scrollTo(0, 0)
   }, [location.pathname])
   useEffect(() => {
-    const t = setInterval(() => setNow(new Date().toISOString()), 1000)
-    return () => clearInterval(t)
+    const timer = setInterval(() => setNow(new Date().toISOString()), 1000)
+    return () => clearInterval(timer)
   }, [])
-  const selected = navigation.find((n) => n.to === location.pathname)
+  useEffect(() => {
+    try {
+      localStorage.setItem('wattwise-sidebar', collapsed ? 'collapsed' : 'expanded')
+    } catch {
+      /* Navigation still works when storage is disabled. */
+    }
+  }, [collapsed])
+  useEffect(() => {
+    if (!mobile) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const links = () =>
+      [...(sidebar.current?.querySelectorAll<HTMLElement>('a, button') ?? [])].filter(
+        (el) => el.getClientRects().length > 0,
+      )
+    links()[0]?.focus()
+    const key = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMobile(false)
+        menuButton.current?.focus()
+      }
+      if (event.key === 'Tab') {
+        const elements = links(),
+          first = elements[0],
+          last = elements.at(-1)
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault()
+          last?.focus()
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault()
+          first?.focus()
+        }
+      }
+    }
+    document.addEventListener('keydown', key)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.removeEventListener('keydown', key)
+    }
+  }, [mobile])
+  const selected = navigation.find((item) => item.to === location.pathname)
+  const PageIcon = selected?.icon || Zap
+  const docsUrl = API ? `${API}/docs` : 'http://127.0.0.1:8000/docs'
+
   return (
     <div className={`app-shell ${collapsed ? 'collapsed' : ''}`}>
+      <a href="#main-content" className="skip-link">
+        Skip to content
+      </a>
       {mobile && (
         <button
           className="sidebar-backdrop"
-          aria-label="Close navigation"
-          onClick={() => setMobile(false)}
+          aria-label="Close navigation overlay"
+          onClick={() => {
+            setMobile(false)
+            menuButton.current?.focus()
+          }}
         />
       )}
-      <aside className={`sidebar ${mobile ? 'mobile-open' : ''}`}>
+      <aside
+        ref={sidebar}
+        className={`sidebar ${mobile ? 'mobile-open' : ''}`}
+        aria-label="Workspace navigation"
+      >
         <NavLink className="brand" to="/" aria-label="Wattwise home">
           <span className="brand-mark">
             <Zap size={23} fill="currentColor" />
           </span>
           <span className="brand-text">
-            wattwise<span className="brand-point">.</span>
+            wattwise<small>ENERGY INTELLIGENCE</small>
           </span>
         </NavLink>
         <button
           className="mobile-close icon-button"
-          onClick={() => setMobile(false)}
+          onClick={() => {
+            setMobile(false)
+            menuButton.current?.focus()
+          }}
           aria-label="Close navigation"
         >
-          <X size={19} />
+          <X size={20} />
         </button>
-        <div className="workspace-card">
+        <NavLink to="/device" className="workspace-card">
           <span className="workspace-icon">
             <Bolt size={18} />
           </span>
           <div>
             <strong>Main power supply</strong>
-            <span>Single-phase monitoring</span>
+            <span>Your energy workspace</span>
           </div>
-          <span className="workspace-dot" />
-        </div>
+          <ChevronDown size={14} />
+        </NavLink>
         <div className="nav-section">WORKSPACE</div>
         <nav aria-label="Main navigation">
-          {navigation.map((n, i) => (
-            <div key={n.to}>
-              {i === 7 && <div className="nav-section system-section">SYSTEM</div>}
+          {navigation.map((item, index) => (
+            <div key={item.to}>
+              {index === 7 && <div className="nav-section system-section">MANAGE</div>}
               <NavLink
-                to={n.to}
-                end={n.to === '/'}
-                title={n.label}
+                to={item.to}
+                end={item.to === '/'}
+                title={item.label}
                 className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
               >
-                <n.icon size={18} />
-                <span>{n.label}</span>
-                {n.to === '/alerts' && !!latest?.active_alert_count && (
-                  <b className="nav-count">{latest.active_alert_count}</b>
+                <item.icon size={18} />
+                <span>{item.label}</span>
+                {item.to === '/alerts' && activeCount > 0 && (
+                  <b className="nav-count">{activeCount}</b>
                 )}
-                {n.to === '/insights' && <small className="soon">SOON</small>}
+                {item.to === '/insights' && <small className="soon">LAB</small>}
               </NavLink>
             </div>
           ))}
         </nav>
         <div className="sidebar-bottom">
           <div className="source-card">
-            <Radio size={17} />
+            <span className="source-card-icon">
+              <Radio size={17} />
+            </span>
             <div>
               <strong>
                 {device?.source === 'hardware'
@@ -135,8 +186,8 @@ export function Shell() {
                 {device?.source === 'hardware'
                   ? 'ESP32 / PZEM input'
                   : device?.source === 'demo'
-                    ? 'Simulated data. Real possibilities.'
-                    : 'Checking data source'}
+                    ? 'Simulated readings'
+                    : 'Checking your connection'}
               </p>
             </div>
             <span className={`source-dot ${status}`} />
@@ -146,7 +197,7 @@ export function Shell() {
             onClick={() => setCollapsed(!collapsed)}
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            <ChevronLeft size={17} />
+            <ChevronLeft size={16} />
             <span>Collapse sidebar</span>
           </button>
         </div>
@@ -155,53 +206,62 @@ export function Shell() {
         <header className="topbar">
           <div className="topbar-left">
             <button
+              ref={menuButton}
               className="icon-button mobile-toggle"
               aria-label="Open navigation"
+              aria-expanded={mobile}
               onClick={() => setMobile(true)}
             >
               <Menu size={21} />
             </button>
-            <span className="topbar-brand">Smart Power Monitor</span>
+            <PageIcon size={17} className="breadcrumb-icon" />
+            <span className="topbar-brand">Workspace</span>
             <span className="breadcrumb-slash">/</span>
             <span className="breadcrumb-page">{selected?.label || 'Page not found'}</span>
           </div>
           <div className="topbar-right">
+            <CommandMenu />
+            <span className="topbar-separator" />
             <ConnectionBadge />
-            <div className="topbar-clock">
-              <span>
-                {date(now)}, {new Date(now).getFullYear()}
-              </span>
-              <strong>{time(now, true)}</strong>
-            </div>
             <NavLink
               to="/alerts"
               className="notification-button icon-button"
               aria-label="View notifications"
             >
-              <Bell size={19} />
-              {!!latest?.active_alert_count && <i />}
+              <Bell size={18} />
+              {activeCount > 0 && <i />}
             </NavLink>
             <NavLink to="/settings" className="avatar" aria-label="Open settings">
               SP
             </NavLink>
           </div>
         </header>
-        <main>
+        <main id="main-content" tabIndex={-1}>
+          <div className="workspace-meta">
+            <span>SMART POWER MONITORING</span>
+            <span>
+              {date(now)} <span>·</span> {time(now, true)}{' '}
+              <span className="clock-zone">{device?.timezone || 'Asia/Kolkata'}</span>
+            </span>
+          </div>
           {storageError && (
             <div className="error-state" role="alert">
               Storage is unavailable. The backend is retrying; displayed readings may be stale.
             </div>
           )}
-          <Outlet />
+          <Suspense fallback={<Loading />}>
+            <Outlet />
+          </Suspense>
         </main>
         <footer>
           <span>
-            <Zap size={12} /> A little insight. A better energy future.
+            <span className={`status-dot ${status === 'live' ? 'green-text' : 'amber-text'}`} />
+            {status === 'live' ? 'Connected to your energy' : 'Ready for your next reading'}
           </span>
           <span>
-            Smart Power Monitoring System <span className="footer-divider">·</span> v1.0
+            Wattwise <span className="footer-divider">/</span> Designed for a brighter tomorrow.
           </span>
-          <a href="http://127.0.0.1:8000/docs" target="_blank" rel="noreferrer">
+          <a href={docsUrl} target="_blank" rel="noreferrer">
             <CircleHelp size={13} /> API documentation <ArrowUpRight size={12} />
           </a>
         </footer>

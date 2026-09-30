@@ -2,10 +2,9 @@ import { Component, StrictMode } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
-import './styles.css'
 import '@fontsource-variable/dm-sans'
 import '@fontsource-variable/manrope'
-import './theme.css'
+import './design.css'
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false }

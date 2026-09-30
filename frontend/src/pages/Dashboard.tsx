@@ -3,21 +3,22 @@ import {
   ArrowRight,
   ArrowUpRight,
   Check,
-  ChevronRight,
+  CircleAlert,
+  Radio,
   ShieldCheck,
   Sparkles,
-  TriangleAlert,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useLive } from '../context/LiveContext'
 import { useResource } from '../hooks/useResource'
 import type { Alert, Reading } from '../types'
 import { number, time, titleCase } from '../utils/format'
-import { MetricCards, BudgetCard, HealthGauge, TodaySummary } from '../components/Metrics'
+import { MetricCards, BudgetCard, HealthGauge } from '../components/Metrics'
 import { TrendChart } from '../components/Charts'
 import { EnergyHero } from '../components/EnergyHero'
 import {
   Badge,
+  Empty,
   ErrorState,
   ExportButton,
   Loading,
@@ -59,30 +60,31 @@ export default function Dashboard() {
     ],
     ['Usage alerts', latest?.active_alert_count === 0, 'No active abnormal usage'],
   ] as const
+  const isLiveRange = range === 'live' || range === '1m'
+  const chartPoints = isLiveRange ? points.slice(-60) : historical.data || []
+  const knownPower = chartPoints.map((point) => point.power)
+  const minimum = knownPower.length ? Math.min(...knownPower) : undefined
+  const maximum = knownPower.length ? Math.max(...knownPower) : undefined
+
   return (
     <div className="page-enter dashboard-page">
       <PageHeading
-        eyebrow="WORKSPACE / OVERVIEW"
+        eyebrow="ENERGY INTELLIGENCE"
         title="Energy overview"
-        description="A live look at your power. Every watt, every second."
+        description="A little perspective. A lot more control."
         action={
-          <>
-            <span className="date-chip">
-              Main power supply <ChevronRight size={13} />
-            </span>
-            <ExportButton
-              path="/reports/export?range=today"
-              filename="today-summary.csv"
-              label="Export report"
-            />
-          </>
+          <ExportButton
+            path="/reports/export?range=today"
+            filename="today-summary.csv"
+            label="Export report"
+          />
         }
       />
       <EnergyHero />
       <div className="section-kicker">
         <div>
           <span className={`status-dot ${status === 'live' ? 'pulse green-text' : 'amber-text'}`} />{' '}
-          LIVE PARAMETERS <span className="section-divider" />{' '}
+          LIVE PARAMETERS <span className="section-divider" />
           <span className="normal-case">
             {device?.source === 'hardware'
               ? 'Hardware source'
@@ -92,8 +94,8 @@ export default function Dashboard() {
           </span>
         </div>
         <span>
-          {age === null ? 'Connecting to your source…' : `Last update ${number(age, 1)}s ago`}{' '}
-          <span className="refresh-dot">↻</span>
+          <Radio size={12} />
+          {age === null ? 'Waiting for a first reading' : `Updated ${number(age, 1)}s ago`}
         </span>
       </div>
       <MetricCards />
@@ -101,13 +103,8 @@ export default function Dashboard() {
         <Panel className="power-panel">
           <div className="panel-title">
             <div>
-              <h2>
-                Live power trend{' '}
-                <span className="live-small">
-                  <span className="tiny-dot green" /> 1s
-                </span>
-              </h2>
-              <p>See how your demand changes over time</p>
+              <span className="eyebrow">DEMAND, OVER TIME</span>
+              <h2>Live power trend</h2>
             </div>
             <Tabs
               value={range}
@@ -122,67 +119,92 @@ export default function Dashboard() {
             />
           </div>
           <div className="trend-headline">
-            <strong>
-              {number(latest?.power, 1)}
-              <small>W</small>
-            </strong>
-            <span>
-              <span className="tiny-dot green" /> Active power
-            </span>
-            <span className="trend-source">
-              {range === 'live' || range === '1m'
-                ? 'Last 60 readings'
-                : 'Sampled historical readings'}
-            </span>
+            <div>
+              <strong>
+                {number(latest?.power, 1)}
+                <small>W</small>
+              </strong>
+              <span className="trend-legend">
+                <span className="tiny-dot orange" /> Active power{' '}
+                {status !== 'live' && latest ? '· last known' : ''}
+              </span>
+            </div>
+            <div className="trend-extremes">
+              <div>
+                <span>LOW</span>
+                <strong>
+                  {number(minimum, 1)}
+                  <small>W</small>
+                </strong>
+              </div>
+              <div>
+                <span>HIGH</span>
+                <strong>
+                  {number(maximum, 1)}
+                  <small>W</small>
+                </strong>
+              </div>
+            </div>
           </div>
           {historical.error ? (
             <ErrorState message={historical.error} retry={historical.refresh} />
-          ) : historical.loading && range !== 'live' && range !== '1m' ? (
+          ) : historical.loading && !isLiveRange ? (
             <Loading />
           ) : (
-            <TrendChart
-              points={
-                range === 'live' || range === '1m' ? points.slice(-60) : historical.data || []
-              }
-            />
+            <TrendChart points={chartPoints} height={260} />
           )}
           <div className="chart-footer">
-            <span>Power (W)</span>
             <span>
-              {range === 'live' || range === '1m'
-                ? 'Updates every second'
-                : 'Historical samples · refreshes every 30s'}
+              <span className="tiny-dot orange" /> Power in watts
+            </span>
+            <span>
+              {isLiveRange ? 'Last 60 readings · 1s updates' : 'Historical samples · 30s refresh'}
             </span>
           </div>
         </Panel>
-        <HealthGauge health={latest?.health_score} />
+        <div className="dashboard-insights">
+          <HealthGauge health={latest?.health_score} />
+          <BudgetCard budget={latest?.budget} compact />
+        </div>
       </div>
       <div className="dashboard-secondary">
-        <TodaySummary summary={latest?.today} />
         <Panel className="system-panel">
           <div className="panel-title">
-            <h2>System health</h2>
+            <div>
+              <span className="eyebrow">PEACE OF MIND</span>
+              <h2>System health</h2>
+            </div>
             <ShieldCheck
-              size={18}
-              className={latest?.active_alert_count === 0 ? 'green-text' : 'amber-text'}
+              size={21}
+              className={
+                status === 'live' && latest?.active_alert_count === 0 ? 'green-text' : 'muted-text'
+              }
             />
           </div>
           <div className="system-checks">
             {checks.map(([label, okay, detail]) => (
               <div key={label}>
-                <span className={`check-icon ${!latest ? 'muted' : okay ? 'green' : 'amber'}`}>
-                  {okay && latest ? <Check size={13} /> : <TriangleAlert size={13} />}
+                <span
+                  className={`check-icon ${status !== 'live' ? 'muted' : okay ? 'green' : 'amber'}`}
+                >
+                  {status === 'live' && okay ? <Check size={14} /> : <CircleAlert size={14} />}
                 </span>
                 <div>
                   <strong>{label}</strong>
                   <p>
-                    {!latest ? 'Waiting for a reading' : okay ? detail : 'Needs your attention'}
+                    {!latest
+                      ? 'Awaiting measurement'
+                      : status !== 'live'
+                        ? 'Reading is no longer live'
+                        : okay
+                          ? detail
+                          : 'Needs your attention'}
                   </p>
                 </div>
                 <span
-                  className={`check-state ${!latest ? '' : okay ? 'green-text' : 'amber-text'}`}
+                  className={`check-state ${status !== 'live' ? '' : okay ? 'green-text' : 'amber-text'}`}
                 >
-                  {!latest ? '—' : okay ? 'Normal' : 'Review'}
+                  {status !== 'live' ? 'Pending' : okay ? 'Normal' : 'Review'}
                 </span>
               </div>
             ))}
@@ -191,56 +213,61 @@ export default function Dashboard() {
             View device status <ArrowUpRight size={15} />
           </Link>
         </Panel>
-        <div className="dashboard-side-stack">
-          <BudgetCard budget={latest?.budget} compact />
-          <Link to="/insights" className="insight-teaser">
-            <span className="insight-symbol">
-              <Sparkles size={20} />
-            </span>
+        <Panel className="recent-panel">
+          <div className="panel-title">
             <div>
-              <div>
-                Smarter energy starts here <Badge tone="purple">Coming next</Badge>
-              </div>
-              <p>Explore what’s next with AI insights.</p>
+              <span className="eyebrow">YOUR ACTIVITY LOG</span>
+              <h2>
+                Recent events{' '}
+                <Badge>{latest?.active_alert_count ?? device?.active_alerts ?? '—'} open</Badge>
+              </h2>
             </div>
-            <ArrowUpRight size={17} />
-          </Link>
-        </div>
-      </div>
-      <Panel className="recent-panel">
-        <div className="panel-title">
-          <div className="flex items-center gap-3">
-            <h2>Recent activity</h2>
-            <Badge>{latest?.active_alert_count ?? '—'} open alerts</Badge>
+            <Link to="/alerts" className="text-link" aria-label="View all alerts">
+              <ArrowUpRight size={19} />
+            </Link>
           </div>
-          <Link to="/alerts" className="text-link">
-            View all alerts <ArrowRight size={14} />
-          </Link>
-        </div>
-        {alerts.error ? (
-          <ErrorState message={alerts.error} retry={alerts.refresh} />
-        ) : !alerts.data?.length ? (
-          <p className="muted-text">No alerts recorded. We’ll keep an eye on things.</p>
-        ) : (
-          <div className="recent-list">
-            {alerts.data.map((alert) => (
-              <div className="recent-row" key={alert.id}>
-                <span className={`activity-icon ${alert.severity}`}>
-                  <Check size={15} />
-                </span>
-                <div>
-                  <strong>{titleCase(alert.type)}</strong>
-                  <p>{alert.message}</p>
+          {alerts.error ? (
+            <ErrorState message={alerts.error} retry={alerts.refresh} />
+          ) : alerts.loading ? (
+            <Loading />
+          ) : !alerts.data?.length ? (
+            <Empty title="A quiet moment" text="New alerts and resolved events will appear here." />
+          ) : (
+            <div className="recent-list">
+              {alerts.data.map((alert) => (
+                <div className="recent-row" key={alert.id}>
+                  <span className={`activity-icon ${alert.severity}`}>
+                    {alert.status === 'resolved' ? <Check size={16} /> : <CircleAlert size={16} />}
+                  </span>
+                  <div>
+                    <strong>{titleCase(alert.type)}</strong>
+                    <p>{alert.message}</p>
+                    <span className="event-meta">
+                      {time(alert.timestamp)} <span>·</span> {titleCase(alert.status)}
+                    </span>
+                  </div>
                 </div>
-                <Badge tone={alert.status === 'resolved' ? 'green' : 'amber'}>
-                  {titleCase(alert.status)}
-                </Badge>
-                <time>{time(alert.timestamp)}</time>
-              </div>
-            ))}
+              ))}
+            </div>
+          )}
+          <Link className="panel-link" to="/alerts">
+            Open alert center <ArrowRight size={15} />
+          </Link>
+        </Panel>
+      </div>
+      <Link to="/insights" className="insight-teaser">
+        <span className="insight-symbol">
+          <Sparkles size={22} />
+        </span>
+        <div>
+          <div>
+            Your next chapter in energy intelligence. <Badge tone="purple">In development</Badge>
           </div>
-        )}
-      </Panel>
+          <p>Explore the foundation for smarter forecasts and recommendations.</p>
+        </div>
+        <span className="insight-link-label">Explore AI insights</span>
+        <ArrowUpRight size={19} />
+      </Link>
     </div>
   )
 }

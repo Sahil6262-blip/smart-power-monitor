@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import { useLive } from '../context/LiveContext'
 import type { Budget, HealthScore, Summary } from '../types'
-import { money, number, time } from '../utils/format'
+import { money, number } from '../utils/format'
 import { Badge, Panel } from './UI'
 import type { Reading } from '../types'
 
@@ -35,7 +35,7 @@ function MetricSparkline({
   const path = values
     .map(
       (value, index) =>
-        `${index ? 'L' : 'M'}${(index / (values.length - 1)) * 160},${29 - ((value - min) / span) * 23}`,
+        `${index ? 'L' : 'M'}${(index / (values.length - 1)) * 160},${max === min ? 18 : 29 - ((value - min) / span) * 23}`,
     )
     .join(' ')
   return (
@@ -82,7 +82,7 @@ const metrics = [
     unit: 'W',
     digits: 1,
     icon: Activity,
-    color: 'green',
+    color: 'orange',
     note: 'Instantaneous load',
   },
   {
@@ -167,6 +167,7 @@ export function SummaryStats({ summary }: { summary?: Summary | null }) {
 
 export function HealthGauge({ health }: { health?: HealthScore }) {
   const value = health?.score ?? 0
+  const factors = health?.factors.filter((factor) => factor.penalty > 0) || []
   return (
     <Panel className="health-panel">
       <div className="panel-title">
@@ -178,51 +179,60 @@ export function HealthGauge({ health }: { health?: HealthScore }) {
           i
         </span>
       </div>
-      <div className="gauge-wrap">
-        <svg
-          viewBox="0 0 200 150"
-          role="img"
-          aria-label={`Energy health score ${health ? value : 'unavailable'} out of 100`}
-        >
-          <path
-            d="M 30 120 A 80 80 0 1 1 170 120"
-            fill="none"
-            stroke="#26332d"
-            strokeWidth="10"
-            strokeLinecap="round"
-          />
-          <path
-            d="M 30 120 A 80 80 0 1 1 170 120"
-            fill="none"
-            stroke={value >= 75 ? '#b6ef83' : '#eebc72'}
-            strokeWidth="10"
-            strokeLinecap="round"
-            pathLength="100"
-            strokeDasharray={`${value} 100`}
-            className="gauge-path"
-          />
-        </svg>
-        <div className="gauge-value">
-          <strong>
-            {health ? value : '—'}
-            <small>/100</small>
-          </strong>
-          <Badge tone={value >= 75 ? 'green' : 'amber'}>{health?.label || 'Waiting'}</Badge>
+      <div className="health-content">
+        <div className="gauge-wrap">
+          <svg
+            viewBox="0 0 120 120"
+            role="img"
+            aria-label={`Energy health score ${health ? value : 'unavailable'} out of 100`}
+          >
+            <circle cx="60" cy="60" r="51" fill="none" stroke="#edf0f7" strokeWidth="5" />
+            <circle
+              cx="60"
+              cy="60"
+              r="51"
+              fill="none"
+              stroke={value >= 75 ? '#5676ed' : '#eaa251'}
+              strokeWidth="5"
+              strokeLinecap="round"
+              pathLength="100"
+              strokeDasharray={`${value} 100`}
+              transform="rotate(-90 60 60)"
+              className="gauge-path"
+              opacity={health ? 1 : 0}
+            />
+            <circle cx="60" cy="60" r="41" fill="none" stroke="#dbe2ef" strokeDasharray="1 5" />
+          </svg>
+          <div className="gauge-value">
+            <strong>{health ? value : '—'}</strong>
+            <small>OUT OF 100</small>
+          </div>
+        </div>
+        <div className="health-description">
+          <Badge tone={!health ? 'muted' : value >= 75 ? 'green' : 'amber'}>
+            {health?.label || 'Awaiting data'}
+          </Badge>
+          <p>
+            {!health
+              ? 'Your energy health will appear with the first reading.'
+              : factors.length
+                ? `${factors.length} factor${factors.length === 1 ? '' : 's'} affecting your score.`
+                : 'Your readings are within the configured limits.'}
+          </p>
         </div>
       </div>
-      <p className="health-caption">A clearer picture of your energy wellbeing.</p>
       <details className="score-details">
         <summary>
-          How is this calculated? <ArrowUpRight size={12} />
+          What goes into this score? <ArrowUpRight size={12} />
         </summary>
         <p>
           Application metric, not an industry certification. Start at 100, subtract the penalties
           below.
         </p>
-        {health?.factors.map((f) => (
-          <div key={f.name}>
-            <span>{f.name}</span>
-            <b>−{f.penalty}</b>
+        {health?.factors.map((factor) => (
+          <div key={factor.name}>
+            <span>{factor.name}</span>
+            <b>−{factor.penalty}</b>
           </div>
         ))}
       </details>
@@ -271,51 +281,6 @@ export function BudgetCard({
         </span>
         <span>{number(budget?.remaining, 1)} kWh remaining</span>
       </div>
-    </Panel>
-  )
-}
-
-export function TodaySummary({ summary }: { summary?: Summary | null }) {
-  return (
-    <Panel className="today-panel">
-      <div className="panel-title">
-        <h2>Today at a glance</h2>
-        <Badge>Today</Badge>
-      </div>
-      <div className="today-energy">
-        <span className="today-icon">
-          <BatteryCharging size={22} />
-        </span>
-        <div>
-          <strong>
-            {number(summary?.energy_kwh, 3)} <small>kWh</small>
-          </strong>
-          <p>Total energy consumed</p>
-        </div>
-      </div>
-      <div className="today-rows">
-        <div>
-          <span>Estimated electricity cost</span>
-          <strong>{money(summary?.estimated_cost)}</strong>
-        </div>
-        <div>
-          <span>Average power</span>
-          <strong>
-            {number(summary?.average_power)} <small>W</small>
-          </strong>
-        </div>
-        <div>
-          <span>Peak power</span>
-          <strong>
-            {number(summary?.peak_power)} <small>W</small>
-          </strong>
-        </div>
-        <div>
-          <span>Peak recorded at</span>
-          <strong>{time(summary?.peak_time)}</strong>
-        </div>
-      </div>
-      <div className="card-footnote">Based on your tariff of {money(summary?.tariff)} / kWh</div>
     </Panel>
   )
 }
