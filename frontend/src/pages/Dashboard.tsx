@@ -256,11 +256,11 @@ export default function Dashboard() {
         </span>
         <div>
           <div>
-            Your next chapter in energy intelligence. <Badge tone="purple">In development</Badge>
+            Forecast your energy use. <Badge tone="purple">Live estimates</Badge>
           </div>
-          <p>Explore the foundation for smarter forecasts and recommendations.</p>
+          <p>See projected consumption and cost from your recent circuit readings.</p>
         </div>
-        <span className="insight-link-label">Explore AI insights</span>
+        <span className="insight-link-label">View predictions</span>
         <ArrowUpRight size={19} />
       </Link>
     </div>

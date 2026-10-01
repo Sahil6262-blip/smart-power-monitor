@@ -59,7 +59,7 @@ On a new machine, set a random `INGEST_API_KEY` of at least 16 characters in the
 | Reports | Period energy/cost/average/peak, peak time, average PF, min/max voltage, alert and reading counts; summary and raw CSV |
 | Device status | Source, backend, storage, socket clients, timestamps, uptime, record count, database size |
 | Settings | Persisted tariff, budget, voltage/current/power/PF thresholds, sudden-load threshold and connection timeout |
-| AI insights | Honest “not configured” states and typed model interfaces; no fabricated predictions, model scores, or accuracy |
+| Predictions | Next-hour and end-of-day circuit energy and cost projections from recent cloud or Bluetooth readings and the saved tariff; requires at least one minute of fresh readings |
 
 The UI has collapsible desktop navigation, a mobile drawer, reduced-motion support, loading/empty/error states, and download error handling. Live cards and graphs use WebSocket messages rather than one-second REST polling.
 

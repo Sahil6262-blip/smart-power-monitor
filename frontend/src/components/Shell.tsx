@@ -162,7 +162,6 @@ export function Shell() {
                 {item.to === '/alerts' && activeCount > 0 && (
                   <b className="nav-count">{activeCount}</b>
                 )}
-                {item.to === '/insights' && <small className="soon">LAB</small>}
               </NavLink>
             </div>
           ))}

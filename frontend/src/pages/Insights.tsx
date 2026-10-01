@@ -1,119 +1,176 @@
-import {
-  BrainCircuit,
-  ChartNoAxesCombined,
-  Fingerprint,
-  Leaf,
-  Sparkles,
-  TrendingUp,
-  Waves,
-} from 'lucide-react'
-import { useResource } from '../hooks/useResource'
-import { Badge, ErrorState, Loading, PageHeading, Panel } from '../components/UI'
+import { useMemo } from 'react'
+import { ArrowRight, ChartNoAxesCombined, Clock3, IndianRupee, Zap } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { useLive } from '../context/LiveContext'
+import { Badge, PageHeading, Panel } from '../components/UI'
+import { money, number } from '../utils/format'
+import { consumptionForecast } from '../services/forecast'
+import './forecast.css'
 
-const features = [
-  {
-    icon: Fingerprint,
-    title: 'Abnormal consumption',
-    text: 'Identify unusual usage patterns using a learned baseline.',
-    tag: 'Anomaly detection',
-  },
-  {
-    icon: TrendingUp,
-    title: 'Daily energy prediction',
-    text: 'Estimate daily energy demand from historical patterns.',
-    tag: 'Short-term forecast',
-  },
-  {
-    icon: ChartNoAxesCombined,
-    title: 'Monthly energy forecast',
-    text: 'Anticipate consumption before the next billing cycle.',
-    tag: 'Long-term forecast',
-  },
-  {
-    icon: Waves,
-    title: 'Peak demand prediction',
-    text: 'Understand when your highest demand is likely to occur.',
-    tag: 'Load forecasting',
-  },
-  {
-    icon: Leaf,
-    title: 'Energy-saving recommendations',
-    text: 'Turn validated consumption patterns into useful actions.',
-    tag: 'Recommendations',
-  },
-]
 export default function Insights() {
-  const result = useResource<{
-    status: string
-    model_version: string | null
-    predictions: unknown[]
-    message: string
-  }>('/predictions')
+  const {
+    latest,
+    points,
+    session,
+    mode,
+    status,
+    settings,
+    settingsOrigin,
+    device,
+    exportTimezone,
+  } = useLive()
+  const zone = device?.timezone || exportTimezone
+  const history = mode === 'cloud' ? points : session.points
+  const { forecast, reason } = useMemo(
+    () =>
+      consumptionForecast({
+        readings: history,
+        latest,
+        mode,
+        live: status === 'live',
+        tariff: settings.tariff,
+        zone,
+        now: new Date(),
+      }),
+    [history, latest, mode, status, settings.tariff, zone],
+  )
+  const cards = [
+    {
+      title: 'Next hour · consumption',
+      value: forecast ? `${number(forecast.nextHourKwh, 3)} kWh` : '—',
+      note: 'At the recent circuit load',
+      icon: Zap,
+    },
+    {
+      title: 'Next hour · cost',
+      value: forecast ? money(forecast.nextHourCost) : '—',
+      note: 'Using your flat tariff',
+      icon: IndianRupee,
+    },
+    {
+      title: 'Today by midnight · consumption',
+      value: forecast ? `${number(forecast.projectedTodayKwh, 3)} kWh` : '—',
+      note: 'Recorded energy + projected remainder',
+      icon: ChartNoAxesCombined,
+    },
+    {
+      title: 'Today by midnight · cost',
+      value: forecast ? money(forecast.projectedTodayCost) : '—',
+      note: 'Energy estimate × tariff',
+      icon: IndianRupee,
+    },
+  ]
+  const capturedShare = forecast?.projectedTodayKwh
+    ? Math.min(100, (forecast.recordedTodayKwh / forecast.projectedTodayKwh) * 100)
+    : 0
   return (
-    <div className="page-enter">
+    <div className="page-enter forecast-page">
       <PageHeading
-        title="AI insights"
-        action={
-          <Badge tone="purple">
-            <Sparkles size={13} /> AI module · Future integration
-          </Badge>
-        }
+        title="Predictions"
+        description="Short-term consumption and cost estimates for your circuit."
+        action={<Badge>Calculated from readings</Badge>}
       />
-      {result.error && <ErrorState message={result.error} retry={result.refresh} />}
-      <Panel className="ai-hero">
-        <div className="ai-orbit">
-          <BrainCircuit size={45} />
-          <span />
-          <span />
-        </div>
+      <Panel className="forecast-intro">
+        <span className="forecast-intro-icon" aria-hidden="true">
+          <ChartNoAxesCombined size={27} />
+        </span>
         <div>
-          <Badge tone="purple">A foundation for intelligence</Badge>
-          <h2>
-            Today’s data.
-            <br />
-            <span>Tomorrow’s possibilities.</span>
-          </h2>
+          <span className="forecast-kicker">CIRCUIT OUTLOOK</span>
+          <h2>See where today's energy is heading.</h2>
           <p>
-            As your energy history grows, it can become the foundation for useful predictions. This
-            workspace has no trained model connected yet.
+            A recent power average estimates the next hour and the rest of today. The cost
+            uses your saved electricity tariff.
           </p>
         </div>
-        <div className="ai-model-status">
-          <span className="tiny-dot amber" />
-          <strong>Awaiting model</strong>
-          <p>No predictions are being generated.</p>
-        </div>
+        <span className="forecast-source">
+          <span className={`status-dot ${forecast ? 'pulse' : ''}`} />
+          {mode === 'offline-device'
+            ? 'Bluetooth meter'
+            : latest?.source === 'demo'
+              ? 'Demo readings'
+              : 'Cloud meter'}
+        </span>
       </Panel>
-      {result.loading ? (
-        <Loading />
-      ) : (
-        <div className="ai-feature-grid">
-          {features.map((f) => (
-            <Panel key={f.title}>
-              <span className="ai-feature-icon">
-                <f.icon size={23} />
-              </span>
-              <Badge>Not configured</Badge>
-              <h2>{f.title}</h2>
-              <p>{f.text}</p>
-              <div className="ai-placeholder">
-                — <span>Available after model integration</span>
+      <div className="forecast-grid">
+        {cards.map(({ title, value, note, icon: Icon }) => (
+          <Panel key={title} className="forecast-card">
+            <div className="forecast-card-top">
+              <h2>{title}</h2>
+              <Icon size={19} aria-hidden="true" />
+            </div>
+            <strong>{value}</strong>
+            <p>{forecast ? note : 'Waiting for a reliable estimate'}</p>
+          </Panel>
+        ))}
+      </div>
+      <Panel className="forecast-detail">
+        <div className="panel-title">
+          <div>
+            <h2>How this estimate is built</h2>
+            <p>Simple projection from observed power, with no trained model.</p>
+          </div>
+          <Clock3 size={20} aria-hidden="true" />
+        </div>
+        {forecast ? (
+          <>
+            <div className="forecast-breakdown">
+              <div>
+                <span>
+                  {mode === 'offline-device' ? 'Captured today via Bluetooth' : 'Recorded today'}
+                </span>
+                <strong>{number(forecast.recordedTodayKwh, 3)} kWh</strong>
               </div>
-              <span className="ai-feature-tag">{f.tag}</span>
-            </Panel>
-          ))}
-        </div>
-      )}
-      <Panel className="ai-honesty">
-        <Sparkles size={20} />
-        <div>
-          <h2>Useful intelligence starts with honest data.</h2>
-          <p>
-            The current health score and alerts use transparent rules. Predictions will appear here
-            only after a real model is trained, validated, and connected.
-          </p>
-        </div>
+              <div>
+                <span>Recent average power</span>
+                <strong>{number(forecast.averagePowerW, 1)} W</strong>
+              </div>
+              <div>
+                <span>Observed window</span>
+                <strong>{number(forecast.observedMinutes, 1)} min</strong>
+              </div>
+              <div>
+                <span>Tariff</span>
+                <strong>{money(settings.tariff)} / kWh</strong>
+              </div>
+            </div>
+            <div
+              className="forecast-bar"
+              role="img"
+              aria-label="Recorded versus projected energy by midnight"
+            >
+              <span style={{ width: `${capturedShare}%` }} />
+            </div>
+            <div className="forecast-legend">
+              <span>
+                <i className="forecast-legend-recorded" /> Recorded
+              </span>
+              <span>
+                <i className="forecast-legend-future" /> Projected remaining
+              </span>
+            </div>
+            <p className="forecast-explanation">
+              Assumes the recent average load continues for the next hour and until midnight in{' '}
+              {zone}.
+              {mode === 'offline-device' &&
+                ' The daily total includes only energy captured by this browser; gaps and earlier usage may be missing.'}
+              {settingsOrigin === 'defaults' &&
+                ' Cost uses the default tariff until your saved setting loads.'}{' '}
+              Fixed charges and taxes are excluded.
+            </p>
+          </>
+        ) : (
+          <div className="forecast-wait" role="status">
+            <Clock3 size={21} aria-hidden="true" />
+            <div>
+              <strong>Forecast pending</strong>
+              <p>{reason}</p>
+            </div>
+          </div>
+        )}
       </Panel>
+      <Link className="forecast-link" to="/consumption">
+        Explore recorded consumption <ArrowRight size={16} />
+      </Link>
     </div>
   )
 }
