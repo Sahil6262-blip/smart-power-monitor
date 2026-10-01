@@ -22,6 +22,7 @@ interface State {
   device: Device | null
   storageError: boolean
   offlineStorageError: boolean
+  exportTimezone: string
   mode: 'cloud' | 'offline-device'
   cloudAvailable: boolean
   ble: BleState
@@ -47,6 +48,13 @@ export function LiveProvider({ children }: { children: ReactNode }) {
     saved.cached ? 'cached' : 'defaults',
   )
   const [device, setDevice] = useState<Device | null>(null)
+  const [exportTimezone, setExportTimezone] = useState(() => {
+    try {
+      return localStorage.getItem('wattwise-export-timezone') || 'Asia/Kolkata'
+    } catch {
+      return 'Asia/Kolkata'
+    }
+  })
   const [storageError, setStorageError] = useState(false)
   const started = useRef(Date.now())
   const cloudSource = useRef<string | null>(null)
@@ -168,6 +176,12 @@ export function LiveProvider({ children }: { children: ReactNode }) {
         }
         cloudSource.current = d.source
         setDevice(d)
+        setExportTimezone(d.timezone || 'Asia/Kolkata')
+        try {
+          localStorage.setItem('wattwise-export-timezone', d.timezone || 'Asia/Kolkata')
+        } catch {
+          /* The configured timezone still applies for this session. */
+        }
       })
       .catch(() => {})
     return () => controller.abort()
@@ -328,6 +342,7 @@ export function LiveProvider({ children }: { children: ReactNode }) {
         device: visibleDevice,
         storageError: mode === 'cloud' && storageError,
         offlineStorageError,
+        exportTimezone,
         mode,
         cloudAvailable,
         ble,

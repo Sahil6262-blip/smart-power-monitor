@@ -24,9 +24,7 @@ export default function Reports() {
     <div className="page-enter">
       <PageHeading
         title="Energy reports"
-        action={
-          query && <ExportButton path={`/reports/export?${query}`} filename="energy-report.csv" />
-        }
+        action={query && <ExportButton path={`/reports/export?${query}`} />}
       />
       <div className="filter-bar">
         <RangeFilter value={range} onChange={setRange} />

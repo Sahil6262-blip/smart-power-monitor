@@ -102,7 +102,7 @@ export async function workspace(
     else if (path.endsWith('/export')) {
       await route.fulfill({
         contentType: 'text/csv',
-        body: 'timestamp,power\n2026-09-30T10:00:00Z,393.8\n',
+        body: 'timestamp,source,voltage,current,power,energy,frequency,power_factor\n2026-09-30T10:00:00Z,hardware,230.4,1.235,393.8,0.034,50,0.98\n',
       })
       return
     } else if (path === '/history/trend') data = empty ? [] : readings

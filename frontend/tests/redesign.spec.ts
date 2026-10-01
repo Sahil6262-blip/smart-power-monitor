@@ -109,7 +109,9 @@ test('charts, history, exports, alerts and settings retain their API behavior', 
     .toBeTruthy()
   const downloaded = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Export CSV', exact: true }).click()
-  expect((await downloaded).suggestedFilename()).toBe('power-readings.csv')
+  expect((await downloaded).suggestedFilename()).toMatch(
+    /^smart-power-readings_\d{2}-\d{2}-\d{4}\.csv$/,
+  )
   await page.goto('/alerts')
   await page.getByRole('button', { name: 'Acknowledge', exact: true }).click()
   await expect(page.getByText('Acknowledged', { exact: true })).toBeVisible()

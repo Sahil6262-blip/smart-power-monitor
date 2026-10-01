@@ -27,12 +27,7 @@ export default function Consumption() {
     <div className="page-enter">
       <PageHeading
         title="Consumption"
-        action={
-          <ExportButton
-            path={`/reports/export?range=${period}`}
-            filename="consumption-summary.csv"
-          />
-        }
+        action={<ExportButton path={`/reports/export?range=${period}`} />}
       />
       {result.error && <ErrorState message={result.error} retry={result.refresh} />}
       <Panel>

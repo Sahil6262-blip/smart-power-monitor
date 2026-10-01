@@ -70,13 +70,7 @@ export default function Dashboard() {
     <div className="page-enter dashboard-page">
       <PageHeading
         title="Energy overview"
-        action={
-          <ExportButton
-            path="/reports/export?range=today"
-            filename="today-summary.csv"
-            label="Export report"
-          />
-        }
+        action={<ExportButton path="/reports/export?range=today" label="Export report" />}
       />
       <EnergyHero />
       <div className="section-kicker">

@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { ArrowDownToLine, LoaderCircle, RefreshCw, TriangleAlert } from 'lucide-react'
-import { download } from '../services/api'
+import { API } from '../services/api'
+import type { Reading } from '../types'
+import { downloadReadingCsv, parseReadingCsv } from '../services/readingCsv'
+import { offlineResource } from '../services/offlineResources'
 import { useLive } from '../context/LiveContext'
 
 export function Panel({ children, className = '' }: { children: ReactNode; className?: string }) {
@@ -61,33 +64,37 @@ export function Empty({ title, text }: { title: string; text: string }) {
     </div>
   )
 }
-export function ExportButton({
-  path,
-  filename = 'power-readings.csv',
-  label = 'Export CSV',
-}: {
-  path: string
-  filename?: string
-  label?: string
-}) {
-  const { mode } = useLive()
+export function ExportButton({ path, label = 'Export CSV' }: { path: string; label?: string }) {
+  const { mode, session, settings, device, exportTimezone } = useLive()
   const [busy, setBusy] = useState(false),
     [error, setError] = useState('')
   return (
     <div className="export-wrap">
       <button
         className="button"
-        disabled={busy || mode === 'offline-device'}
-        title={
-          mode === 'offline-device'
-            ? 'Cloud exports are available when the cloud reconnects.'
-            : undefined
-        }
+        disabled={busy}
         onClick={async () => {
           setBusy(true)
           setError('')
           try {
-            await download(path, filename)
+            const query = new URL(path, location.origin).searchParams
+            let readings: Reading[]
+            if (mode === 'offline-device') {
+              query.set('page', '1')
+              query.set('page_size', '10000')
+              readings = (
+                offlineResource(`/history?${query}`, session, settings, device) as {
+                  items: Reading[]
+                }
+              ).items
+            } else {
+              const response = await fetch(`${API}/api/history/export?${query}`, {
+                signal: AbortSignal.timeout(60000),
+              })
+              if (!response.ok) throw new Error('Export failed. Please try again.')
+              readings = parseReadingCsv(await response.text())
+            }
+            downloadReadingCsv(readings, exportTimezone)
           } catch (e) {
             setError((e as Error).message)
           } finally {

@@ -75,7 +75,7 @@ test('local alerts and controls never mutate cloud state', async ({ page }) => {
     .getByRole('navigation', { name: 'Main navigation' })
     .getByRole('link', { name: 'History' })
     .click()
-  await expect(page.getByRole('button', { name: 'Export CSV' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Export CSV' })).toBeEnabled()
   await expect(page.locator('tbody tr')).toHaveCount(1)
   expect(requests.some((r) => r.method !== 'GET')).toBeFalsy()
 })
