@@ -6,6 +6,7 @@ import {
   FileChartColumn,
   History,
   LayoutDashboard,
+  PlugZap,
   Settings2,
   Sparkles,
 } from 'lucide-react'
@@ -44,6 +45,12 @@ export const navigation = [
     hint: 'Energy summaries and CSV reports',
   },
   { to: '/device', label: 'Device status', icon: Cpu, hint: 'Connections, hardware, and storage' },
+  {
+    to: '/devices',
+    label: 'Devices',
+    icon: PlugZap,
+    hint: 'Appliance inventory and estimated loads',
+  },
   {
     to: '/settings',
     label: 'Settings',

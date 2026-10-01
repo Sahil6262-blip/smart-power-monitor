@@ -10,6 +10,7 @@ const pages = [
   ['/history', 'Historical data'],
   ['/reports', 'Energy reports'],
   ['/device', 'Device status'],
+  ['/devices', 'Devices'],
   ['/settings', 'Settings'],
 ]
 
