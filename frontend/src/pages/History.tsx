@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight, Database } from 'lucide-react'
 import { useResource } from '../hooks/useResource'
+import { useLive } from '../context/LiveContext'
 import type { Reading } from '../types'
 import { date, number, time } from '../utils/format'
 import { TrendChart, parameters } from '../components/Charts'
@@ -23,6 +24,7 @@ interface HistoryData {
   page_size: number
 }
 export default function History() {
+  const { mode } = useLive()
   const [range, setRange] = useState(defaultRange),
     [page, setPage] = useState(1),
     [parameter, setParameter] = useState<Parameter>('power')
@@ -36,7 +38,11 @@ export default function History() {
       <PageHeading
         eyebrow="THE COMPLETE PICTURE"
         title="Historical data"
-        description="Look back, find patterns, and explore every reading."
+        description={
+          mode === 'offline-device'
+            ? 'Bluetooth session only. Up to 3,600 recent readings; times are browser receipt times.'
+            : 'Look back, find patterns, and explore every reading.'
+        }
         action={query && <ExportButton path={`/history/export?${query}`} />}
       />
       <div className="filter-bar">

@@ -1,0 +1,94 @@
+.connection-panel {
+  margin: 0 0 24px;
+  padding: 15px 18px;
+  border: 1px solid #dce4f5;
+  border-radius: 12px;
+  background: #fff;
+}
+.connection-line,
+.connection-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.connection-line {
+  justify-content: space-between;
+}
+.mode-indicator {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  color: #4263c5;
+}
+.mode-indicator strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  letter-spacing: 0.8px;
+}
+.mode-indicator p {
+  margin-top: 5px;
+  color: #647188;
+  font-size: 11px;
+}
+.bluetooth-mode {
+  color: #8555c9;
+}
+.pwa-ready,
+.bluetooth-ready {
+  font-size: 10px;
+  color: #647188;
+}
+.bluetooth-ready {
+  color: #8555c9;
+}
+.offline-explanation {
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid #edf0f7;
+  font-size: 11px;
+  color: #647188;
+  line-height: 1.7;
+}
+.bluetooth-error {
+  color: #b84759;
+  font-size: 12px;
+  line-height: 1.6;
+  margin-top: 10px;
+}
+.pwa-update {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+  margin-top: 12px;
+  color: #647188;
+}
+.connection-actions .text-link {
+  background: none;
+}
+@media (max-width: 800px) {
+  .pwa-ready {
+    display: none;
+  }
+  .connection-panel {
+    padding: 14px;
+  }
+}
+@media (max-width: 600px) {
+  .connection-actions {
+    gap: 10px;
+  }
+  .connection-line {
+    gap: 13px;
+  }
+  .pwa-update {
+    flex-wrap: wrap;
+  }
+  .connection-actions .button {
+    white-space: normal;
+  }
+}

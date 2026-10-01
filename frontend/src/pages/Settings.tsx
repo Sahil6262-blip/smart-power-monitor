@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { BadgeIndianRupee, BellRing, Check, LoaderCircle, Save, ShieldCheck } from 'lucide-react'
 import { useResource } from '../hooks/useResource'
 import { api } from '../services/api'
+import { useLive } from '../context/LiveContext'
 import type { Settings as SettingsData } from '../types'
 import { ErrorState, Loading, PageHeading, Panel } from '../components/UI'
 
@@ -95,6 +96,7 @@ const groups = [
 ] as const
 
 export default function Settings() {
+  const { mode } = useLive()
   const result = useResource<SettingsData>('/settings')
   const [form, setForm] = useState<Record<string, string>>({}),
     [busy, setBusy] = useState(false),
@@ -117,6 +119,7 @@ export default function Settings() {
   }, [dirty])
   const save = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (mode === 'offline-device') return
     setError('')
     setMessage('')
     if (Number(form.min_voltage) >= Number(form.max_voltage)) {
@@ -170,6 +173,7 @@ export default function Settings() {
                       <input
                         aria-label={label}
                         required
+                        disabled={mode === 'offline-device'}
                         type="number"
                         min={min}
                         max={max}
@@ -197,9 +201,17 @@ export default function Settings() {
           )}
           <div className="settings-save">
             <span>
-              {dirty ? 'You have unsaved changes.' : 'Settings are stored in your database.'}
+              {mode === 'offline-device'
+                ? 'Offline thresholds are read-only. Reconnect to cloud to save changes.'
+                : dirty
+                  ? 'You have unsaved changes.'
+                  : 'Settings are stored in your database.'}
             </span>
-            <button type="submit" className="button primary" disabled={busy || !dirty}>
+            <button
+              type="submit"
+              className="button primary"
+              disabled={busy || !dirty || mode === 'offline-device'}
+            >
               {busy ? <LoaderCircle className="spin" size={16} /> : <Save size={16} />}Save changes
             </button>
           </div>

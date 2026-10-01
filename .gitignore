@@ -4,6 +4,8 @@
 .env
 .env.*
 !.env.example
+secrets.h
+firmware/.build/
 
 # =========================
 # Python

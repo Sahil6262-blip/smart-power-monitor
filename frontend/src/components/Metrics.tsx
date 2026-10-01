@@ -166,12 +166,13 @@ export function SummaryStats({ summary }: { summary?: Summary | null }) {
 }
 
 export function HealthGauge({ health }: { health?: HealthScore }) {
+  const { mode } = useLive()
   const value = health?.score ?? 0
   const factors = health?.factors.filter((factor) => factor.penalty > 0) || []
   return (
     <Panel className="health-panel">
       <div className="panel-title">
-        <h2>Energy health</h2>
+        <h2>{mode === 'offline-device' ? 'Session health' : 'Energy health'}</h2>
         <span
           className="info-dot"
           title={health?.description || 'Application heuristic; not an industry-certified metric.'}
@@ -228,6 +229,7 @@ export function HealthGauge({ health }: { health?: HealthScore }) {
         <p>
           Application metric, not an industry certification. Start at 100, subtract the penalties
           below.
+          {mode === 'offline-device' && ' Offline estimates exclude the cloud monthly budget.'}
         </p>
         {health?.factors.map((factor) => (
           <div key={factor.name}>
@@ -247,6 +249,7 @@ export function BudgetCard({
   budget?: Budget | null
   compact?: boolean
 }) {
+  const { mode } = useLive()
   return (
     <Panel className={`budget-panel ${compact ? 'compact' : ''}`}>
       <div className="panel-title">
@@ -274,7 +277,9 @@ export function BudgetCard({
         <span>
           <span className="tiny-dot green" />{' '}
           {!budget
-            ? 'Waiting for usage'
+            ? mode === 'offline-device'
+              ? 'Monthly total needs cloud'
+              : 'Waiting for usage'
             : budget.percentage >= 100
               ? 'Budget exceeded'
               : 'Within your budget'}

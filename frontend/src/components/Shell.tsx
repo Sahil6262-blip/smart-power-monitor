@@ -18,6 +18,7 @@ import { Badge, Loading } from './UI'
 import { CommandMenu } from './CommandMenu'
 import { navigation } from './navigation'
 import { API } from '../services/api'
+import { ConnectionControls } from './ConnectionControls'
 
 export function ConnectionBadge() {
   const { status } = useLive()
@@ -43,7 +44,7 @@ export function Shell() {
   })
   const [mobile, setMobile] = useState(false)
   const [now, setNow] = useState(new Date().toISOString())
-  const { latest, device, status, storageError } = useLive()
+  const { latest, device, status, storageError, mode } = useLive()
   const location = useLocation()
   const sidebar = useRef<HTMLElement>(null)
   const menuButton = useRef<HTMLButtonElement>(null)
@@ -176,18 +177,22 @@ export function Shell() {
             </span>
             <div>
               <strong>
-                {device?.source === 'hardware'
-                  ? 'Hardware source'
-                  : device?.source === 'demo'
-                    ? 'Demo workspace'
-                    : 'Connecting…'}
+                {mode === 'offline-device'
+                  ? 'Bluetooth device'
+                  : device?.source === 'hardware'
+                    ? 'Hardware source'
+                    : device?.source === 'demo'
+                      ? 'Demo workspace'
+                      : 'Connecting…'}
               </strong>
               <p>
-                {device?.source === 'hardware'
-                  ? 'ESP32 / PZEM input'
-                  : device?.source === 'demo'
-                    ? 'Simulated readings'
-                    : 'Checking your connection'}
+                {mode === 'offline-device'
+                  ? 'Direct ESP32 / PZEM'
+                  : device?.source === 'hardware'
+                    ? 'ESP32 / PZEM input'
+                    : device?.source === 'demo'
+                      ? 'Simulated readings'
+                      : 'Checking your connection'}
               </p>
             </div>
             <span className={`source-dot ${status}`} />
@@ -244,6 +249,7 @@ export function Shell() {
               <span className="clock-zone">{device?.timezone || 'Asia/Kolkata'}</span>
             </span>
           </div>
+          <ConnectionControls />
           {storageError && (
             <div className="error-state" role="alert">
               Storage is unavailable. The backend is retrying; displayed readings may be stale.

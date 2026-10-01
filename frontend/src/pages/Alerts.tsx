@@ -17,7 +17,7 @@ const units: Record<string, string> = {
   data_connection_lost: 's',
 }
 export default function Alerts() {
-  const { revision, latest } = useLive()
+  const { revision, latest, mode, updateLocalAlert } = useLive()
   const [status, setStatus] = useState('open'),
     [severity, setSeverity] = useState(''),
     [day, setDay] = useState('')
@@ -35,7 +35,11 @@ export default function Alerts() {
     params.set('end', end.toISOString())
   }
   const result = useResource<Alert[]>(`/alerts?${params}`, revision, 30000)
-  const mutate = async (id: number, state: string) => {
+  const mutate = async (id: number, state: 'acknowledged' | 'resolved') => {
+    if (mode === 'offline-device') {
+      updateLocalAlert(id, state)
+      return
+    }
     setBusy(id)
     setError('')
     try {

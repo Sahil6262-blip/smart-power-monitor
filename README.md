@@ -2,6 +2,8 @@
 
 **Wattwise** is a complete, single-meter energy monitoring application: a React dashboard, a FastAPI ingestion pipeline, SQL storage, a WebSocket stream, configurable alerts, consumption analytics, historical readings, and exports. **This workspace is configured for real ESP32/PZEM hardware.** Simulation remains available only when explicitly enabled.
 
+BLE offline mode is implemented in the same dashboard. See [the firmware, PWA, and hardware verification guide](docs/OFFLINE_MODE.md) before uploading the ESP32 or releasing the frontend. It includes the BLE packet format, Arduino partition setting, browser limitations, and exact change inventory.
+
 ## Start on this Windows machine
 
 The dependencies have already been installed in this workspace. Open two PowerShell terminals.

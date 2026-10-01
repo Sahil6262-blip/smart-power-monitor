@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SmartPowerMonitor BLE verification</title>
+<style>body{font:16px system-ui;max-width:760px;margin:40px auto;padding:20px}button{padding:12px;margin:5px}pre{white-space:pre-wrap;background:#f2f5fc;padding:20px;overflow-wrap:anywhere}</style>
+<h1>Verify BLE independently</h1>
+<p>Serve on localhost or HTTPS. This tester makes no cloud requests. Format: protocol v1, 20 bytes.</p>
+<button id="connect">Select SmartPowerMonitor</button><button id="disconnect" disabled>Disconnect</button>
+<p id="status" role="status">Ready</p><pre id="log">Waiting for notifications.</pre>
+<script type="module">
+const service = 'b8541000-b5e6-4af4-9a44-6a0f78d40100';
+const characteristic = 'b8541001-b5e6-4af4-9a44-6a0f78d40100';
+let device, count = 0;
+const status = document.querySelector('#status'), log = document.querySelector('#log');
+document.querySelector('#connect').onclick = async () => {
+  try {
+    if (!navigator.bluetooth) throw new Error('Web Bluetooth unavailable. Use supported Chrome/Edge on HTTPS or localhost.');
+    device?.gatt?.disconnect();
+    device = await navigator.bluetooth.requestDevice({filters:[{name:'SmartPowerMonitor'}],optionalServices:[service]});
+    device.addEventListener('gattserverdisconnected', () => {
+      status.textContent = 'Device disconnected'; document.querySelector('#disconnect').disabled = true;
+    });
+    const server = await device.gatt.connect();
+    const c = await (await server.getPrimaryService(service)).getCharacteristic(characteristic);
+    count = 0;
+    c.addEventListener('characteristicvaluechanged', event => {
+      const data = event.target.value;
+      if (data.byteLength !== 20) { status.textContent = 'Invalid packet length: ' + data.byteLength; return; }
+      const u24 = o => data.getUint8(o) + 256 * data.getUint8(o + 1) + 65536 * data.getUint8(o + 2);
+      const reading = { sequence: data.getUint32(0,true), voltage: data.getUint16(4,true)/10,
+        current: u24(6)/1000, power: u24(9)/10, energy: data.getUint32(12,true)/1000,
+        frequency: data.getUint16(16,true)/10, power_factor: data.getUint16(18,true)/1000 };
+      status.textContent = 'Received ' + (++count) + ' notifications';
+      log.textContent = new Date().toISOString() + '\n' + JSON.stringify(reading,null,2);
+    });
+    await c.startNotifications();
+    status.textContent = 'Subscribed. Waiting for an accepted sensor reading.';
+    document.querySelector('#disconnect').disabled = false;
+  } catch (error) { status.textContent = error.message; }
+};
+document.querySelector('#disconnect').onclick = () => device?.gatt?.disconnect();
+</script></html>
+

@@ -7,22 +7,27 @@ import { number, time } from '../utils/format'
 import { ConnectionBadge } from '../components/Shell'
 
 export default function DeviceStatus() {
-  const { status, latest, age } = useLive()
+  const { status, latest, age, mode } = useLive()
+  const local = mode === 'offline-device'
   const result = useResource<Device>('/health', 0, 10000)
   const d = result.data
   const cards = [
     {
       icon: Radio,
       label: 'Data source',
-      value: d?.source === 'demo' ? 'Demo simulator' : 'Hardware adapter',
+      value: local
+        ? 'Bluetooth ESP32'
+        : d?.source === 'demo'
+          ? 'Demo simulator'
+          : 'Hardware adapter',
       okay: status === 'live',
       note: status === 'live' ? 'Receiving readings every second' : 'Waiting for fresh readings',
     },
     {
       icon: Server,
       label: 'Backend API',
-      value: result.error ? 'Unavailable' : d ? 'Connected' : 'Checking',
-      okay: !!d && !result.error,
+      value: local || result.error ? 'Unavailable' : d ? 'Connected' : 'Checking',
+      okay: !local && !!d && !result.error,
       note: 'FastAPI · REST + WebSocket',
     },
     {
@@ -30,14 +35,20 @@ export default function DeviceStatus() {
       label: 'Database',
       value: d?.database === 'connected' ? 'Connected' : 'Unavailable',
       okay: d?.database === 'connected',
-      note: d?.database_engine === 'sqlite' ? 'SQLite · local storage' : 'PostgreSQL',
+      note: local
+        ? 'Session in memory · not uploaded'
+        : d?.database_engine === 'sqlite'
+          ? 'SQLite · local storage'
+          : 'PostgreSQL',
     },
     {
       icon: Wifi,
       label: 'Live connection',
       value: status === 'live' ? 'Streaming' : status === 'waiting' ? 'Waiting' : 'Disconnected',
       okay: status === 'live',
-      note: `${d?.websocket_clients ?? 0} connected client(s)`,
+      note: local
+        ? 'Direct Bluetooth notifications'
+        : `${d?.websocket_clients ?? 0} connected client(s)`,
     },
   ]
   return (
@@ -60,22 +71,29 @@ export default function DeviceStatus() {
             </div>
             <div>
               <Badge tone={status === 'live' ? 'green' : 'amber'}>
-                {d?.source === 'demo' ? 'DEMO DATA SOURCE ACTIVE' : 'HARDWARE INPUT ADAPTER'}
+                {local
+                  ? 'BLUETOOTH INPUT ADAPTER'
+                  : d?.source === 'demo'
+                    ? 'DEMO DATA SOURCE ACTIVE'
+                    : 'HARDWARE INPUT ADAPTER'}
               </Badge>
               <h2>Main power supply</h2>
               <p>
-                {d?.source === 'demo'
-                  ? 'A realistic software source powers this workspace.'
-                  : 'Accepting validated ESP32 / PZEM readings via the ingestion API.'}
+                {local
+                  ? 'Receiving measurements directly from SmartPowerMonitor over Bluetooth.'
+                  : d?.source === 'demo'
+                    ? 'A realistic software source powers this workspace.'
+                    : 'Accepting validated ESP32 / PZEM readings via the ingestion API.'}
               </p>
               <span className="muted-text">Single-phase AC · {d?.timezone}</span>
             </div>
             <div className="device-uptime">
               <Clock3 size={17} />
-              <span>System uptime</span>
+              <span>{local ? 'Cloud uptime unavailable' : 'System uptime'}</span>
               <strong>
-                {Math.floor((d?.uptime_seconds || 0) / 3600)}h{' '}
-                {Math.floor(((d?.uptime_seconds || 0) % 3600) / 60)}m
+                {local
+                  ? '—'
+                  : `${Math.floor((d?.uptime_seconds || 0) / 3600)}h ${Math.floor(((d?.uptime_seconds || 0) % 3600) / 60)}m`}
               </strong>
             </div>
           </Panel>
@@ -102,16 +120,21 @@ export default function DeviceStatus() {
                 {[
                   ['Latest reading', time(latest?.timestamp, true)],
                   ['Reading age', `${number(age, 1)} seconds`],
-                  ['Stored readings', number(d?.reading_count, 0)],
+                  [local ? 'Session readings' : 'Stored readings', number(d?.reading_count, 0)],
                   ['Open alerts', number(latest?.active_alert_count ?? d?.active_alerts, 0)],
                   [
                     'Storage size',
-                    d?.storage_bytes == null
-                      ? 'Managed by PostgreSQL'
-                      : `${number(d.storage_bytes / 1048576, 2)} MB`,
+                    local
+                      ? 'In-memory session'
+                      : d?.storage_bytes == null
+                        ? 'Managed by PostgreSQL'
+                        : `${number(d.storage_bytes / 1048576, 2)} MB`,
                   ],
                   ['Live frequency', '1 Hz'],
-                  ['Raw data retention', 'No automatic deletion'],
+                  [
+                    'Raw data retention',
+                    local ? 'Last 3,600 readings · resets on reload' : 'No automatic deletion',
+                  ],
                 ].map(([k, v]) => (
                   <div key={k}>
                     <span>{k}</span>

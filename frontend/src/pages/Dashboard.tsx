@@ -28,7 +28,7 @@ import {
 } from '../components/UI'
 
 export default function Dashboard() {
-  const { latest, points, age, revision, settings, status, device } = useLive()
+  const { latest, points, age, revision, settings, status, device, mode } = useLive()
   const [range, setRange] = useState('live')
   const historical = useResource<Reading[]>(
     range !== 'live' && range !== '1m' ? `/history/trend?range=${range}&points=240` : null,
@@ -86,11 +86,13 @@ export default function Dashboard() {
           <span className={`status-dot ${status === 'live' ? 'pulse green-text' : 'amber-text'}`} />{' '}
           LIVE PARAMETERS <span className="section-divider" />
           <span className="normal-case">
-            {device?.source === 'hardware'
-              ? 'Hardware source'
-              : device?.source === 'demo'
-                ? 'Demo data source'
-                : 'Connecting to source'}
+            {mode === 'offline-device'
+              ? 'Direct Bluetooth'
+              : device?.source === 'hardware'
+                ? 'Hardware source'
+                : device?.source === 'demo'
+                  ? 'Demo data source'
+                  : 'Connecting to source'}
           </span>
         </div>
         <span>
@@ -158,7 +160,11 @@ export default function Dashboard() {
               <span className="tiny-dot orange" /> Power in watts
             </span>
             <span>
-              {isLiveRange ? 'Last 60 readings · 1s updates' : 'Historical samples · 30s refresh'}
+              {mode === 'offline-device'
+                ? 'Bluetooth session · browser receipt time'
+                : isLiveRange
+                  ? 'Last 60 readings · 1s updates'
+                  : 'Historical samples · 30s refresh'}
             </span>
           </div>
         </Panel>

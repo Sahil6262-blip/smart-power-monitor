@@ -1,126 +1,303 @@
-import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { api, WS } from '../services/api'
 import type { Device, LiveMessage, Reading, Settings } from '../types'
 import { setDisplayZone } from '../utils/format'
+import { BleConnection, supportsBluetooth, type BleState } from '../services/ble'
+import { OfflineSession, offlineDevice, type DisplayReading } from '../services/offlineSession'
+import { loadSettings, saveSettings } from '../services/offlineSettings'
 
 interface State {
-  latest: LiveMessage | null
+  latest: DisplayReading | null
   points: Reading[]
   status: 'live' | 'waiting' | 'offline'
   age: number | null
   revision: number
-  settings: Settings | null
+  settings: Settings
   device: Device | null
   storageError: boolean
+  mode: 'cloud' | 'offline-device'
+  cloudAvailable: boolean
+  ble: BleState
+  connectBle: (chooseAnother?: boolean) => Promise<void>
+  disconnectBle: () => void
+  settingsOrigin: 'cloud' | 'cached' | 'defaults'
+  session: { points: Reading[]; alerts: LiveMessage['alerts'] }
+  updateLocalAlert: (id: number, status: 'acknowledged' | 'resolved') => void
 }
 const Context = createContext<State | null>(null)
 
 export function LiveProvider({ children }: { children: ReactNode }) {
-  const [latest, setLatest] = useState<LiveMessage | null>(null)
-  const [points, setPoints] = useState<Reading[]>([])
+  const [cloudLatest, setCloudLatest] = useState<LiveMessage | null>(null)
+  const [cloudPoints, setCloudPoints] = useState<Reading[]>([])
   const [revision, setRevision] = useState(0)
   const [connected, setConnected] = useState(false)
+  const [network, setNetwork] = useState(navigator.onLine)
   const [clock, setClock] = useState(Date.now())
-  const [settings, setSettings] = useState<Settings | null>(null)
+  const [saved] = useState(loadSettings)
+  const [settings, setSettings] = useState<Settings>(saved.values)
+  const settingsRef = useRef(settings)
+  const [settingsOrigin, setSettingsOrigin] = useState<State['settingsOrigin']>(
+    saved.cached ? 'cached' : 'defaults',
+  )
   const [device, setDevice] = useState<Device | null>(null)
   const [storageError, setStorageError] = useState(false)
-  const last = useRef<number | null>(null)
   const started = useRef(Date.now())
-  const source = useRef<string | null>(null)
+  const cloudSource = useRef<string | null>(null)
+  const [ble, setBle] = useState<BleState>({
+    status: supportsBluetooth() ? 'idle' : 'unsupported',
+    name: 'SmartPowerMonitor',
+    error: '',
+  })
+  const bleConnection = useRef<BleConnection | null>(null)
+  const [session] = useState(() => new OfflineSession())
+  const [bleLatest, setBleLatest] = useState<DisplayReading | null>(null)
+  const [, setSessionVersion] = useState(0)
+  const cloudAvailableRef = useRef(false)
+  const autoReconnectBle = useRef(true)
+
   useEffect(() => {
+    let alive = true
+    const connection = new BleConnection(
+      (state) => {
+        if (!alive) return
+        setBle(state)
+        if (state.status !== 'connected') session.disconnect()
+      },
+      (reading) => {
+        if (!alive) return
+        setBleLatest(session.ingest(reading, settingsRef.current))
+        setSessionVersion((v) => v + 1)
+      },
+      () => {
+        session.reset()
+        setBleLatest(null)
+        setSessionVersion((v) => v + 1)
+      },
+    )
+    bleConnection.current = connection
+    const reconnect = () => {
+      if (alive && autoReconnectBle.current && !cloudAvailableRef.current)
+        void connection.reconnectAuthorized()
+    }
+    void connection.restore().then(reconnect)
+    const reconnectTimer = setInterval(reconnect, 5000)
+    return () => {
+      alive = false
+      clearInterval(reconnectTimer)
+      connection.dispose()
+      bleConnection.current = null
+    }
+  }, [session])
+
+  const connectBle = useCallback(
+    async (chooseAnother = false) => {
+      autoReconnectBle.current = true
+      await bleConnection.current?.connect(chooseAnother)
+    },
+    [session],
+  )
+  const disconnectBle = useCallback(() => {
+    autoReconnectBle.current = false
+    bleConnection.current?.disconnect()
+  }, [])
+  const updateLocalAlert = useCallback(
+    (id: number, status: 'acknowledged' | 'resolved') => {
+      session.updateAlert(id, status)
+      setBleLatest(session.latest)
+      setSessionVersion((v) => v + 1)
+    },
+    [session],
+  )
+
+  useEffect(() => {
+    if (!network) return
     const controller = new AbortController()
     void api<Settings>('/settings', { signal: controller.signal })
-      .then(setSettings)
+      .then((value) => {
+        if (controller.signal.aborted) return
+        settingsRef.current = value
+        setSettings(value)
+        saveSettings(value)
+        setSettingsOrigin('cloud')
+      })
       .catch(() => {})
     void api<Device>('/health', { signal: controller.signal })
       .then((d) => {
-        // A backend mode switch must not leave demo values in a hardware workspace.
-        if (source.current && source.current !== d.source) {
-          setLatest(null)
-          setPoints([])
-          last.current = null
+        if (controller.signal.aborted) return
+        if (cloudSource.current && cloudSource.current !== d.source) {
+          setCloudLatest(null)
+          setCloudPoints([])
           started.current = Date.now()
         }
-        source.current = d.source
+        cloudSource.current = d.source
         setDevice(d)
-        setDisplayZone(d.timezone)
       })
       .catch(() => {})
     return () => controller.abort()
-  }, [revision])
+  }, [revision, network])
+
   useEffect(() => {
     let alive = true,
-      socket: WebSocket,
-      retry: ReturnType<typeof setTimeout>,
-      attempts = 0
+      socket: WebSocket | undefined,
+      retry: ReturnType<typeof setTimeout> | undefined
+    let attempts = 0,
+      socketGeneration = 0,
+      openedAt = 0
+    const historyController = new AbortController()
     const append = (items: Reading[]) =>
-      setPoints((old) => {
-        const map = new Map([...items, ...old].map((p) => [p.timestamp, p]))
+      setCloudPoints((old) => {
+        const map = new Map([...old, ...items].map((p) => [p.timestamp, p]))
         return [...map.values()].sort((a, b) => a.timestamp.localeCompare(b.timestamp)).slice(-300)
       })
-    void api<Reading[]>('/history/trend?range=1m&points=300')
+    void api<Reading[]>('/history/trend?range=1m&points=300', { signal: historyController.signal })
       .then((rows) => {
         if (alive) append(rows)
       })
       .catch(() => {})
+
+    const schedule = () => {
+      clearTimeout(retry)
+      if (alive)
+        retry = setTimeout(connect, Math.min(1000 * 2 ** attempts++, 10000) + Math.random() * 300)
+    }
     const connect = () => {
       if (!alive) return
-      socket = new WebSocket(WS)
-      socket.onopen = () => {
+      clearTimeout(retry)
+      if (!navigator.onLine) {
+        schedule()
+        return
+      }
+      const generation = ++socketGeneration
+      socket?.close()
+      openedAt = Date.now()
+      const current = new WebSocket(WS)
+      socket = current
+      current.onopen = () => {
+        if (!alive || generation !== socketGeneration) return
         setConnected(true)
         attempts = 0
-        setRevision((r) => r + 1)
+        setRevision((v) => v + 1)
       }
-      socket.onmessage = (event) => {
+      current.onmessage = (event) => {
+        if (!alive || generation !== socketGeneration) return
         try {
           const msg = JSON.parse(event.data)
           if (
             msg.type === 'reading' &&
             Number.isFinite(msg.power) &&
-            Number.isFinite(Date.parse(msg.timestamp))
+            Number.isFinite(Date.parse(msg.timestamp)) &&
+            msg.today &&
+            msg.budget &&
+            msg.health_score &&
+            Array.isArray(msg.alerts)
           ) {
-            if (source.current && source.current !== msg.source) setPoints([])
-            source.current = msg.source
-            last.current = Date.parse(msg.timestamp)
-            setLatest(msg)
+            if (cloudSource.current && cloudSource.current !== msg.source) setCloudPoints([])
+            cloudSource.current = msg.source
+            setCloudLatest(msg)
             append([msg])
             setStorageError(false)
-            if (msg.alerts.length) setRevision((r) => r + 1)
+            if (msg.alerts.length) setRevision((v) => v + 1)
           } else if (msg.type === 'settings_changed' || msg.type === 'alerts_changed')
-            setRevision((r) => r + 1)
+            setRevision((v) => v + 1)
           else if (msg.type === 'status') setStorageError(msg.storage_status !== 'connected')
         } catch {
-          /* Ignore malformed messages; stale-data detection remains active. */
+          /* Malformed packets must not change the selected source. */
         }
       }
-      socket.onerror = () => socket.close()
-      socket.onclose = () => {
-        if (!alive) return
+      current.onerror = () => current.close()
+      current.onclose = () => {
+        if (!alive || generation !== socketGeneration) return
         setConnected(false)
-        retry = setTimeout(connect, Math.min(1000 * 2 ** attempts++, 10000) + Math.random() * 300)
+        schedule()
       }
     }
+    const online = () => {
+      setNetwork(true)
+      attempts = 0
+      setRevision((v) => v + 1)
+      connect()
+    }
+    const offline = () => {
+      setNetwork(false)
+      setConnected(false)
+      socketGeneration++
+      socket?.close()
+      schedule()
+    }
+    window.addEventListener('online', online)
+    window.addEventListener('offline', offline)
     connect()
-    const ticker = setInterval(() => setClock(Date.now()), 250)
+    const ticker = setInterval(() => {
+      setClock(Date.now())
+      // Browsers may leave an unsuccessful handshake pending for a long time.
+      if (socket?.readyState === WebSocket.CONNECTING && Date.now() - openedAt > 12000)
+        socket.close()
+    }, 250)
     return () => {
       alive = false
+      socketGeneration++
+      historyController.abort()
       clearTimeout(retry)
       clearInterval(ticker)
       socket?.close()
+      window.removeEventListener('online', online)
+      window.removeEventListener('offline', offline)
     }
   }, [])
-  const age = last.current === null ? null : Math.max(0, (clock - last.current) / 1000)
-  const staleAge = age ?? (clock - started.current) / 1000
+
+  const cloudAge = cloudLatest
+    ? Math.max(0, (clock - Date.parse(cloudLatest.timestamp)) / 1000)
+    : null
+  const cloudAvailable = network && connected && !storageError && cloudAge !== null && cloudAge < 10
+  cloudAvailableRef.current = cloudAvailable
+  const mode: State['mode'] =
+    !cloudAvailable && (bleLatest !== null || ['connected', 'disconnected'].includes(ble.status))
+      ? 'offline-device'
+      : 'cloud'
+  const latest = mode === 'cloud' ? cloudLatest : bleLatest
+  const age = latest ? Math.max(0, (clock - Date.parse(latest.timestamp)) / 1000) : null
+  const sourceConnected =
+    mode === 'cloud' ? network && connected && !storageError : ble.status === 'connected'
   const status =
-    staleAge >= 10
+    !sourceConnected && (latest || !network || ble.status === 'disconnected')
       ? 'offline'
-      : connected && age !== null && age < 3 && !storageError
-        ? 'live'
-        : 'waiting'
+      : (age ?? (clock - started.current) / 1000) >= 10
+        ? 'offline'
+        : sourceConnected && age !== null && age < 3
+          ? 'live'
+          : 'waiting'
+  const visibleDevice =
+    mode === 'cloud' ? device : offlineDevice(ble.status === 'connected', bleLatest)
+  useEffect(() => {
+    setDisplayZone(
+      mode === 'cloud'
+        ? device?.timezone || 'Asia/Kolkata'
+        : Intl.DateTimeFormat().resolvedOptions().timeZone,
+    )
+  }, [mode, device?.timezone])
+
   return (
     <Context.Provider
-      value={{ latest, points, status, age, revision, settings, device, storageError }}
+      value={{
+        latest,
+        points: mode === 'cloud' ? cloudPoints : session.points.slice(-300),
+        status,
+        age,
+        revision,
+        settings,
+        device: visibleDevice,
+        storageError: mode === 'cloud' && storageError,
+        mode,
+        cloudAvailable,
+        ble,
+        connectBle,
+        disconnectBle,
+        settingsOrigin:
+          mode === 'offline-device' && settingsOrigin === 'cloud' ? 'cached' : settingsOrigin,
+        session: { points: session.points, alerts: [...session.alerts] },
+        updateLocalAlert,
+      }}
     >
       {children}
     </Context.Provider>

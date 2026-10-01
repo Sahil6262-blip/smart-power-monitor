@@ -4,7 +4,7 @@ import { useLive } from '../context/LiveContext'
 import { money, number, time } from '../utils/format'
 
 export function EnergyHero() {
-  const { latest, status, device } = useLive()
+  const { latest, status, device, mode } = useLive()
   const isLive = status === 'live'
   return (
     <section className="energy-overview-grid" aria-label="Energy at a glance">
@@ -16,11 +16,13 @@ export function EnergyHero() {
           </div>
           <span className="flow-source">
             <span className="status-dot" />
-            {device?.source === 'demo'
-              ? 'Demo source'
-              : device?.source === 'hardware'
-                ? 'Single-phase AC'
-                : 'Connecting'}
+            {mode === 'offline-device'
+              ? 'Direct Bluetooth'
+              : device?.source === 'demo'
+                ? 'Demo source'
+                : device?.source === 'hardware'
+                  ? 'Single-phase AC'
+                  : 'Connecting'}
           </span>
         </div>
         <div className="energy-flow-diagram">
@@ -81,7 +83,7 @@ export function EnergyHero() {
       </div>
       <div className="daily-highlight">
         <div className="daily-heading">
-          <span>TODAY’S ENERGY</span>
+          <span>{mode === 'offline-device' ? 'BLUETOOTH SESSION ENERGY' : 'TODAY’S ENERGY'}</span>
           <span className="daily-symbol">
             <Zap size={19} />
           </span>
@@ -90,7 +92,11 @@ export function EnergyHero() {
           {number(latest?.today.energy_kwh, 2)}
           <span>kWh</span>
         </div>
-        <p>Every reading adds to the bigger picture.</p>
+        <p>
+          {mode === 'offline-device'
+            ? 'Measured since this Bluetooth session began.'
+            : 'Every reading adds to the bigger picture.'}
+        </p>
         <div className="daily-cost">
           <span>Estimated cost</span>
           <strong>{money(latest?.today.estimated_cost)}</strong>

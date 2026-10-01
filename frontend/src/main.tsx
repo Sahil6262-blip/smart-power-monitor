@@ -5,6 +5,7 @@ import App from './App'
 import '@fontsource-variable/dm-sans'
 import '@fontsource-variable/manrope'
 import './design.css'
+import './offline.css'
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false }

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { ArrowDownToLine, LoaderCircle, RefreshCw, TriangleAlert } from 'lucide-react'
 import { download } from '../services/api'
+import { useLive } from '../context/LiveContext'
 
 export function Panel({ children, className = '' }: { children: ReactNode; className?: string }) {
   return <section className={`panel ${className}`}>{children}</section>
@@ -72,13 +73,19 @@ export function ExportButton({
   filename?: string
   label?: string
 }) {
+  const { mode } = useLive()
   const [busy, setBusy] = useState(false),
     [error, setError] = useState('')
   return (
     <div className="export-wrap">
       <button
         className="button"
-        disabled={busy}
+        disabled={busy || mode === 'offline-device'}
+        title={
+          mode === 'offline-device'
+            ? 'Cloud exports are available when the cloud reconnects.'
+            : undefined
+        }
         onClick={async () => {
           setBusy(true)
           setError('')

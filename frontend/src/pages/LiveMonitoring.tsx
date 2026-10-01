@@ -9,7 +9,7 @@ import { ConnectionBadge } from '../components/Shell'
 import { number, time } from '../utils/format'
 
 export default function LiveMonitoring() {
-  const { points, latest, age } = useLive()
+  const { points, latest, age, mode } = useLive()
   const [parameter, setParameter] = useState<Parameter>('power')
   const [window, setWindow] = useState('60')
   const visible = points.slice(-Number(window))
@@ -53,7 +53,10 @@ export default function LiveMonitoring() {
         <TrendChart points={visible} parameter={parameter} height={340} />
         <div className="chart-footer">
           <span>
-            <Radio size={13} /> WebSocket stream · 1 Hz
+            <Radio size={13} />{' '}
+            {mode === 'offline-device'
+              ? 'Bluetooth notifications · receipt time'
+              : 'WebSocket stream · 1 Hz'}
           </span>
           <span>
             Last update: {time(latest?.timestamp, true)} · {number(age, 1)}s ago
