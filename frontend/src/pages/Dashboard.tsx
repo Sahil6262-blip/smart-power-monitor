@@ -260,7 +260,7 @@ export default function Dashboard() {
           </div>
           <p>See projected consumption and cost from your recent circuit readings.</p>
         </div>
-        <span className="insight-link-label">View predictions</span>
+        <span className="insight-link-label">Explore AI insights</span>
         <ArrowUpRight size={19} />
       </Link>
     </div>

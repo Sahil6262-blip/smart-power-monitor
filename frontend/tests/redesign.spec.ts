@@ -5,7 +5,7 @@ const pages = [
   ['/', 'Energy overview'],
   ['/live', 'Live monitoring'],
   ['/consumption', 'Consumption'],
-  ['/insights', 'Predictions'],
+  ['/insights', 'AI insights'],
   ['/alerts', 'Alerts & events'],
   ['/history', 'Historical data'],
   ['/reports', 'Energy reports'],

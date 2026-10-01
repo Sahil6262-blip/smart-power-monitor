@@ -78,6 +78,37 @@
   letter-spacing: -0.04em;
   overflow-wrap: anywhere;
 }
+.forecast-monthly {
+  margin-bottom: 20px;
+  padding: 28px;
+}
+.forecast-monthly-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+  margin-top: 22px;
+}
+.forecast-monthly-grid > div {
+  min-width: 0;
+  padding: 18px 20px;
+  border: 1px solid #dfe6f2;
+  border-radius: 12px;
+  background: #f7f9fd;
+}
+.forecast-monthly-grid span {
+  display: block;
+  color: #526178;
+  font-size: 13px;
+}
+.forecast-monthly-grid strong {
+  display: block;
+  margin-top: 12px;
+  font:
+    650 25px 'Manrope Variable',
+    var(--font-sans);
+  letter-spacing: -0.04em;
+  overflow-wrap: anywhere;
+}
 .forecast-detail {
   padding: 28px;
 }
@@ -192,5 +223,12 @@
   }
   .forecast-detail {
     padding: 22px;
+  }
+  .forecast-monthly {
+    padding: 22px;
+  }
+  .forecast-monthly-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
   }
 }

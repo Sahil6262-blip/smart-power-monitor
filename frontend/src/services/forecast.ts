@@ -13,6 +13,13 @@ export interface ConsumptionForecast {
   remainingHours: number
 }
 
+export interface MonthlyForecast {
+  recordedMonthKwh: number
+  projectedMonthKwh: number
+  projectedMonthCost: number
+  remainingFullDays: number
+}
+
 interface ForecastInput {
   readings: Reading[]
   latest: (Reading & { today?: Summary }) | null
@@ -53,8 +60,7 @@ function dateKey(stamp: number, zone: string) {
 
 // Count only energy captured by this browser for the selected BLE meter.
 // Gaps and duplicate timestamps establish a new baseline, matching OfflineSession.
-export function capturedBleEnergy(readings: Reading[], zone: string, now: Date): number {
-  const today = dateKey(now.getTime(), zone)
+function capturedEnergy(readings: Reading[], zone: string, now: Date, period: string): number {
   const ordered = [...readings]
     .filter(
       (r) =>
@@ -62,7 +68,7 @@ export function capturedBleEnergy(readings: Reading[], zone: string, now: Date):
         Date.parse(r.timestamp) <= now.getTime() &&
         Number.isFinite(r.energy) &&
         r.energy >= 0 &&
-        dateKey(Date.parse(r.timestamp), zone) === today,
+        dateKey(Date.parse(r.timestamp), zone).startsWith(period),
     )
     .sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp))
   let total = 0
@@ -73,6 +79,14 @@ export function capturedBleEnergy(readings: Reading[], zone: string, now: Date):
     total += delta >= 0 ? delta : ordered[i].energy
   }
   return total
+}
+
+export function capturedBleEnergy(readings: Reading[], zone: string, now: Date): number {
+  return capturedEnergy(readings, zone, now, dateKey(now.getTime(), zone))
+}
+
+export function capturedBleMonthEnergy(readings: Reading[], zone: string, now: Date): number {
+  return capturedEnergy(readings, zone, now, dateKey(now.getTime(), zone).slice(0, 7))
 }
 
 function recentAverage(readings: Reading[], source: string | undefined, now: number) {
@@ -153,5 +167,44 @@ export function consumptionForecast({
       projectedTodayCost: projectedTodayKwh * tariff,
       remainingHours,
     },
+  }
+}
+
+export function monthlyForecast({
+  today,
+  monthEnergyKwh,
+  readings,
+  mode,
+  tariff,
+  zone,
+  now,
+}: {
+  today: ConsumptionForecast | null
+  monthEnergyKwh: number | null
+  readings: Reading[]
+  mode: SourceMode
+  tariff: number
+  zone: string
+  now: Date
+}): MonthlyForecast | null {
+  if (!today || !Number.isFinite(tariff) || tariff < 0) return null
+  if (mode === 'cloud' && (!Number.isFinite(monthEnergyKwh) || (monthEnergyKwh ?? -1) < 0))
+    return null
+  const { year, month, day } = localParts(now.getTime(), zone)
+  const remainingFullDays =
+    new Date(Date.UTC(Number(year), Number(month), 0)).getUTCDate() - Number(day)
+  const recordedMonthKwh = Math.max(
+    today.recordedTodayKwh,
+    mode === 'cloud' ? monthEnergyKwh! : capturedBleMonthEnergy(readings, zone, now),
+  )
+  const projectedMonthKwh =
+    recordedMonthKwh +
+    Math.max(0, today.projectedTodayKwh - today.recordedTodayKwh) +
+    remainingFullDays * today.projectedTodayKwh
+  return {
+    recordedMonthKwh,
+    projectedMonthKwh,
+    projectedMonthCost: projectedMonthKwh * tariff,
+    remainingFullDays,
   }
 }

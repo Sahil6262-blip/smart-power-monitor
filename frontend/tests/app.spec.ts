@@ -21,7 +21,7 @@ test('live data, routes, exports, and responsive navigation', async ({ page }) =
   const routes = [
     ['/live', 'Live monitoring'],
     ['/consumption', 'Consumption'],
-    ['/insights', 'Predictions'],
+    ['/insights', 'AI insights'],
     ['/alerts', 'Alerts & events'],
     ['/history', 'Historical data'],
     ['/reports', 'Energy reports'],

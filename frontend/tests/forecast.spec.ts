@@ -1,6 +1,11 @@
 import { expect, test } from '@playwright/test'
 import type { Reading, Summary } from '../src/types'
-import { capturedBleEnergy, consumptionForecast } from '../src/services/forecast'
+import {
+  capturedBleEnergy,
+  capturedBleMonthEnergy,
+  consumptionForecast,
+  monthlyForecast,
+} from '../src/services/forecast'
 import { workspace } from './helpers/cloud'
 import { mockBluetooth, notify } from './helpers/bluetooth'
 
@@ -54,6 +59,39 @@ test('forecasts next-hour and end-of-day energy and cost from fresh measured pow
   expect(differentTariff.forecast?.projectedTodayKwh).toBe(1.6)
 })
 
+test('projects monthly kWh and cost from recorded energy plus the current daily run rate', () => {
+  const today = consumptionForecast({
+    readings: rows,
+    latest,
+    mode: 'cloud',
+    live: true,
+    tariff: 8,
+    zone: 'Asia/Kolkata',
+    now,
+  }).forecast
+  const input = {
+    today,
+    monthEnergyKwh: 0.35,
+    readings: rows,
+    mode: 'cloud' as const,
+    tariff: 8,
+    zone: 'Asia/Kolkata',
+    now,
+  }
+  expect(monthlyForecast(input)).toEqual({
+    recordedMonthKwh: 0.35,
+    projectedMonthKwh: 49.6,
+    projectedMonthCost: 396.8,
+    remainingFullDays: 30,
+  })
+  expect(
+    monthlyForecast({ ...input, now: new Date('2026-10-31T06:00:00Z'), monthEnergyKwh: 40 }),
+  ).toMatchObject({ remainingFullDays: 0, projectedMonthKwh: 41.25, projectedMonthCost: 330 })
+  expect(monthlyForecast({ ...input, monthEnergyKwh: null })).toBeNull()
+  expect(monthlyForecast({ ...input, today: null })).toBeNull()
+  expect(monthlyForecast({ ...input, tariff: 0 })?.projectedMonthCost).toBe(0)
+})
+
 test('does not invent forecasts from missing, stale or interrupted meter data', () => {
   const input = {
     readings: rows,
@@ -87,6 +125,7 @@ test('does not invent forecasts from missing, stale or interrupted meter data', 
 test('BLE energy counts captured counter deltas without attributing disconnected gaps', () => {
   const ble = rows.map((r) => ({ ...r, source: 'ble', energy: 0.01 + Number(r.energy) - 1 }))
   expect(capturedBleEnergy(ble, 'Asia/Kolkata', now)).toBeCloseTo(60 / 36000)
+  expect(capturedBleMonthEnergy(ble, 'Asia/Kolkata', now)).toBeCloseTo(60 / 36000)
   const gapped = [ble[0], ble[1], { ...ble[60], energy: 0.1 }]
   expect(capturedBleEnergy(gapped, 'Asia/Kolkata', now)).toBeCloseTo(1 / 36000)
   const result = consumptionForecast({
@@ -100,6 +139,17 @@ test('BLE energy counts captured counter deltas without attributing disconnected
   })
   expect(result.forecast?.recordedTodayKwh).toBeCloseTo(60 / 36000)
   expect(result.forecast?.projectedTodayKwh).toBeGreaterThan(1.25)
+  expect(
+    monthlyForecast({
+      today: result.forecast,
+      monthEnergyKwh: null,
+      readings: ble,
+      mode: 'offline-device',
+      tariff: 8,
+      zone: 'Asia/Kolkata',
+      now,
+    })?.projectedMonthKwh,
+  ).toBeGreaterThan(38)
 })
 
 test('cloud forecast uses the existing live reading and remains in the current dashboard', async ({
@@ -107,11 +157,14 @@ test('cloud forecast uses the existing live reading and remains in the current d
 }) => {
   const requests = await workspace(page)
   await page.goto('/insights')
-  await expect(page.getByRole('heading', { name: 'Predictions', level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'AI insights', level: 1 })).toBeVisible()
   await expect(page.getByText('Forecast pending')).toHaveCount(0)
   await expect(page.locator('.forecast-card').first()).toContainText('kWh')
   await expect(page.locator('.forecast-card').nth(1)).toContainText('₹')
   await expect(page.locator('.forecast-breakdown')).toContainText('3.824 kWh')
+  await expect(page.locator('.forecast-monthly-grid')).toContainText('kWh')
+  await expect(page.locator('.forecast-monthly-grid')).toContainText('₹')
+  expect(requests.some((r) => r.path === '/consumption/month?granularity=daily')).toBeTruthy()
   expect(requests.some((r) => r.path === '/predictions' || r.method !== 'GET')).toBeFalsy()
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
@@ -167,6 +220,17 @@ test('BLE forecast uses persisted offline readings, then hides when the meter di
   await notify(page, 93.2, 0.0122)
   await expect(page.locator('.forecast-card').first()).toContainText('0.093 kWh')
   await expect(page.locator('.forecast-breakdown')).toContainText('Captured today via Bluetooth')
+  await expect(page.locator('.forecast-monthly-grid')).toContainText('kWh')
+  await expect(page.locator('.forecast-monthly')).toContainText('Captured in this browser')
   await page.getByRole('button', { name: 'Disconnect Bluetooth' }).click()
   await expect(page.getByText('Forecast pending')).toBeVisible()
+  await expect(page.locator('.forecast-monthly-grid')).toContainText('—')
+})
+
+test('AI insights keeps monthly numbers pending without live readings', async ({ page }) => {
+  await workspace(page, true)
+  await page.goto('/insights')
+  await expect(page.getByRole('heading', { name: 'AI insights', level: 1 })).toBeVisible()
+  await expect(page.locator('.forecast-monthly-grid')).toContainText('—')
+  await expect(page.locator('.forecast-monthly')).toContainText('Waiting for live meter readings.')
 })

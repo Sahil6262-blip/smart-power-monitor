@@ -2,9 +2,11 @@ import { useMemo } from 'react'
 import { ArrowRight, ChartNoAxesCombined, Clock3, IndianRupee, Zap } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useLive } from '../context/LiveContext'
+import { useResource } from '../hooks/useResource'
 import { Badge, PageHeading, Panel } from '../components/UI'
+import type { Consumption } from '../types'
 import { money, number } from '../utils/format'
-import { consumptionForecast } from '../services/forecast'
+import { consumptionForecast, monthlyForecast } from '../services/forecast'
 import './forecast.css'
 
 export default function Insights() {
@@ -21,6 +23,11 @@ export default function Insights() {
   } = useLive()
   const zone = device?.timezone || exportTimezone
   const history = mode === 'cloud' ? points : session.points
+  const month = useResource<Consumption>(
+    mode === 'cloud' ? '/consumption/month?granularity=daily' : null,
+    0,
+    60000,
+  )
   const { forecast, reason } = useMemo(
     () =>
       consumptionForecast({
@@ -63,11 +70,27 @@ export default function Insights() {
   const capturedShare = forecast?.projectedTodayKwh
     ? Math.min(100, (forecast.recordedTodayKwh / forecast.projectedTodayKwh) * 100)
     : 0
+  const monthly = useMemo(
+    () =>
+      monthlyForecast({
+        today: forecast,
+        monthEnergyKwh:
+          mode === 'cloud' && (!month.data || month.data.summary.source !== latest?.source)
+            ? null
+            : (month.data?.summary.energy_kwh ?? null),
+        readings: history,
+        mode,
+        tariff: settings.tariff,
+        zone,
+        now: new Date(),
+      }),
+    [forecast, month.data, latest?.source, history, mode, settings.tariff, zone],
+  )
   return (
     <div className="page-enter forecast-page">
       <PageHeading
-        title="Predictions"
-        description="Short-term consumption and cost estimates for your circuit."
+        title="AI insights"
+        description="Consumption and cost outlooks calculated from your circuit readings."
         action={<Badge>Calculated from readings</Badge>}
       />
       <Panel className="forecast-intro">
@@ -78,7 +101,7 @@ export default function Insights() {
           <span className="forecast-kicker">CIRCUIT OUTLOOK</span>
           <h2>See where today's energy is heading.</h2>
           <p>
-            A recent power average estimates the next hour and the rest of today. The cost
+            A recent power average estimates the next hour, today, and the rest of this month. Cost
             uses your saved electricity tariff.
           </p>
         </div>
@@ -103,6 +126,42 @@ export default function Insights() {
           </Panel>
         ))}
       </div>
+      <Panel className="forecast-monthly">
+        <div className="panel-title">
+          <div>
+            <h2>Monthly consumption and cost</h2>
+            <p>End-of-month projection based on today’s estimated pace.</p>
+          </div>
+          <Badge>Run-rate estimate</Badge>
+        </div>
+        <div className="forecast-monthly-grid">
+          <div>
+            <span>Projected monthly consumption</span>
+            <strong>{monthly ? `${number(monthly.projectedMonthKwh, 3)} kWh` : '—'}</strong>
+          </div>
+          <div>
+            <span>Projected monthly cost</span>
+            <strong>{monthly ? money(monthly.projectedMonthCost) : '—'}</strong>
+          </div>
+        </div>
+        {monthly ? (
+          <p className="forecast-explanation">
+            {mode === 'offline-device' ? 'Captured in this browser' : 'Recorded this month'}:{' '}
+            {number(monthly.recordedMonthKwh, 3)} kWh. The estimate adds the rest of today and{' '}
+            {monthly.remainingFullDays} {monthly.remainingFullDays === 1 ? 'day' : 'days'} at
+            today’s projected daily usage. Actual usage can differ if the load changes.
+            {mode === 'offline-device' &&
+              ' Bluetooth history is limited to saved browser readings, so earlier usage may be missing.'}
+          </p>
+        ) : (
+          <p className="forecast-explanation" role="status">
+            {reason ||
+              (mode === 'cloud'
+                ? month.error || 'Waiting for this month’s recorded energy.'
+                : 'Waiting for captured Bluetooth readings.')}
+          </p>
+        )}
+      </Panel>
       <Panel className="forecast-detail">
         <div className="panel-title">
           <div>

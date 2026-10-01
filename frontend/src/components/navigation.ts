@@ -27,9 +27,9 @@ export const navigation = [
   },
   {
     to: '/insights',
-    label: 'Predictions',
+    label: 'AI insights',
     icon: Sparkles,
-    hint: 'Consumption and cost forecasts',
+    hint: 'Consumption and cost insights',
   },
   { to: '/alerts', label: 'Alerts', icon: Bell, hint: 'Events, warnings, and acknowledgements' },
   {
