@@ -52,9 +52,7 @@ export default function Insights() {
   return (
     <div className="page-enter">
       <PageHeading
-        eyebrow="THE NEXT CHAPTER"
         title="AI insights"
-        description="Built for smarter decisions. Ready for a real model."
         action={
           <Badge tone="purple">
             <Sparkles size={13} /> AI module · Future integration

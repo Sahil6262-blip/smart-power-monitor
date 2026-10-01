@@ -15,12 +15,7 @@ export default function LiveMonitoring() {
   const visible = points.slice(-Number(window))
   return (
     <div className="page-enter">
-      <PageHeading
-        eyebrow="REAL-TIME TELEMETRY"
-        title="Live monitoring"
-        description="Your electrical signature, one second at a time."
-        action={<ConnectionBadge />}
-      />
+      <PageHeading title="Live monitoring" action={<ConnectionBadge />} />
       <MetricCards />
       <Panel className="live-chart-panel">
         <div className="panel-title">

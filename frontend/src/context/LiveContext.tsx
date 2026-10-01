@@ -6,6 +6,11 @@ import { setDisplayZone } from '../utils/format'
 import { BleConnection, supportsBluetooth, type BleState } from '../services/ble'
 import { OfflineSession, offlineDevice, type DisplayReading } from '../services/offlineSession'
 import { loadSettings, saveSettings } from '../services/offlineSettings'
+import {
+  loadOfflineReadings,
+  mergeOfflineReadings,
+  saveOfflineReading,
+} from '../services/offlineStorage'
 
 interface State {
   latest: DisplayReading | null
@@ -16,6 +21,7 @@ interface State {
   settings: Settings
   device: Device | null
   storageError: boolean
+  offlineStorageError: boolean
   mode: 'cloud' | 'offline-device'
   cloudAvailable: boolean
   ble: BleState
@@ -55,6 +61,28 @@ export function LiveProvider({ children }: { children: ReactNode }) {
   const [, setSessionVersion] = useState(0)
   const cloudAvailableRef = useRef(false)
   const autoReconnectBle = useRef(true)
+  const [offlinePoints, setOfflinePoints] = useState<Reading[]>([])
+  const [offlineStorageError, setOfflineStorageError] = useState(false)
+  const [deviceId, setDeviceId] = useState(() => {
+    try {
+      return localStorage.getItem('wattwise-ble-device') || ''
+    } catch {
+      return ''
+    }
+  })
+  const deviceIdRef = useRef(deviceId)
+
+  useEffect(() => {
+    let alive = true
+    void loadOfflineReadings(deviceId).then((rows) => {
+      if (!alive || deviceIdRef.current !== deviceId) return
+      if (rows === null) setOfflineStorageError(true)
+      else setOfflinePoints((current) => mergeOfflineReadings(rows, current))
+    })
+    return () => {
+      alive = false
+    }
+  }, [deviceId])
 
   useEffect(() => {
     let alive = true
@@ -64,13 +92,21 @@ export function LiveProvider({ children }: { children: ReactNode }) {
         setBle(state)
         if (state.status !== 'connected') session.disconnect()
       },
-      (reading) => {
+      (reading, readingDeviceId) => {
         if (!alive) return
         setBleLatest(session.ingest(reading, settingsRef.current))
+        setOfflinePoints((current) => mergeOfflineReadings(current, [reading]))
+        void saveOfflineReading(reading, readingDeviceId).then((saved) => {
+          if (alive && deviceIdRef.current === readingDeviceId) setOfflineStorageError(!saved)
+        })
         setSessionVersion((v) => v + 1)
       },
-      () => {
+      (selectedDeviceId) => {
+        if (!alive || deviceIdRef.current === selectedDeviceId) return
+        deviceIdRef.current = selectedDeviceId
+        setDeviceId(selectedDeviceId)
         session.reset()
+        setOfflinePoints([])
         setBleLatest(null)
         setSessionVersion((v) => v + 1)
       },
@@ -252,7 +288,10 @@ export function LiveProvider({ children }: { children: ReactNode }) {
   const cloudAvailable = network && connected && !storageError && cloudAge !== null && cloudAge < 10
   cloudAvailableRef.current = cloudAvailable
   const mode: State['mode'] =
-    !cloudAvailable && (bleLatest !== null || ['connected', 'disconnected'].includes(ble.status))
+    !cloudAvailable &&
+    (offlinePoints.length > 0 ||
+      bleLatest !== null ||
+      ['connected', 'disconnected'].includes(ble.status))
       ? 'offline-device'
       : 'cloud'
   const latest = mode === 'cloud' ? cloudLatest : bleLatest
@@ -281,13 +320,14 @@ export function LiveProvider({ children }: { children: ReactNode }) {
     <Context.Provider
       value={{
         latest,
-        points: mode === 'cloud' ? cloudPoints : session.points.slice(-300),
+        points: mode === 'cloud' ? cloudPoints : offlinePoints.slice(-300),
         status,
         age,
         revision,
         settings,
         device: visibleDevice,
         storageError: mode === 'cloud' && storageError,
+        offlineStorageError,
         mode,
         cloudAvailable,
         ble,
@@ -295,7 +335,7 @@ export function LiveProvider({ children }: { children: ReactNode }) {
         disconnectBle,
         settingsOrigin:
           mode === 'offline-device' && settingsOrigin === 'cloud' ? 'cached' : settingsOrigin,
-        session: { points: session.points, alerts: [...session.alerts] },
+        session: { points: offlinePoints, alerts: [...session.alerts] },
         updateLocalAlert,
       }}
     >

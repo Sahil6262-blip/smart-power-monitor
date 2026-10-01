@@ -36,12 +36,11 @@ export default function History() {
   return (
     <div className="page-enter">
       <PageHeading
-        eyebrow="THE COMPLETE PICTURE"
         title="Historical data"
         description={
           mode === 'offline-device'
-            ? 'Bluetooth session only. Up to 3,600 recent readings; times are browser receipt times.'
-            : 'Look back, find patterns, and explore every reading.'
+            ? 'Local Bluetooth history · Latest 10,000 readings · Receipt times'
+            : undefined
         }
         action={query && <ExportButton path={`/history/export?${query}`} />}
       />

@@ -36,7 +36,7 @@ export default function DeviceStatus() {
       value: d?.database === 'connected' ? 'Connected' : 'Unavailable',
       okay: d?.database === 'connected',
       note: local
-        ? 'Session in memory · not uploaded'
+        ? 'Local reading history · not uploaded'
         : d?.database_engine === 'sqlite'
           ? 'SQLite · local storage'
           : 'PostgreSQL',
@@ -53,12 +53,7 @@ export default function DeviceStatus() {
   ]
   return (
     <div className="page-enter">
-      <PageHeading
-        eyebrow="CONNECTED & IN CONTROL"
-        title="Device status"
-        description="The health of every connection behind your readings."
-        action={<ConnectionBadge />}
-      />
+      <PageHeading title="Device status" action={<ConnectionBadge />} />
       {result.error && <ErrorState message={result.error} retry={result.refresh} />}{' '}
       {result.loading && !d ? (
         <Loading />
@@ -125,7 +120,7 @@ export default function DeviceStatus() {
                   [
                     'Storage size',
                     local
-                      ? 'In-memory session'
+                      ? 'Local browser storage'
                       : d?.storage_bytes == null
                         ? 'Managed by PostgreSQL'
                         : `${number(d.storage_bytes / 1048576, 2)} MB`,
@@ -133,7 +128,7 @@ export default function DeviceStatus() {
                   ['Live frequency', '1 Hz'],
                   [
                     'Raw data retention',
-                    local ? 'Last 3,600 readings · resets on reload' : 'No automatic deletion',
+                    local ? 'Latest 10,000 BLE readings' : 'No automatic deletion',
                   ],
                 ].map(([k, v]) => (
                   <div key={k}>

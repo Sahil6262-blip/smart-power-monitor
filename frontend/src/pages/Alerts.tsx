@@ -54,9 +54,7 @@ export default function Alerts() {
   return (
     <div className="page-enter">
       <PageHeading
-        eyebrow="STAY A STEP AHEAD"
         title="Alerts & events"
-        description="Know what needs attention, and keep a record of what’s resolved."
         action={
           <Badge tone={latest?.active_alert_count ? 'amber' : 'green'}>
             <Bell size={13} />

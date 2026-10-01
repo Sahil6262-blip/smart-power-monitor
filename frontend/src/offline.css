@@ -25,21 +25,21 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.8px;
 }
 .mode-indicator p {
   margin-top: 5px;
-  color: #647188;
-  font-size: 11px;
+  color: #526178;
+  font-size: 12px;
 }
 .bluetooth-mode {
   color: #8555c9;
 }
 .pwa-ready,
 .bluetooth-ready {
-  font-size: 10px;
-  color: #647188;
+  font-size: 12px;
+  color: #526178;
 }
 .bluetooth-ready {
   color: #8555c9;
@@ -48,8 +48,8 @@
   margin-top: 12px;
   padding-top: 11px;
   border-top: 1px solid #edf0f7;
-  font-size: 11px;
-  color: #647188;
+  font-size: 12px;
+  color: #526178;
   line-height: 1.7;
 }
 .bluetooth-error {
@@ -63,9 +63,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  font-size: 11px;
+  font-size: 12px;
   margin-top: 12px;
-  color: #647188;
+  color: #526178;
 }
 .connection-actions .text-link {
   background: none;

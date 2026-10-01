@@ -26,9 +26,7 @@ export default function Consumption() {
   return (
     <div className="page-enter">
       <PageHeading
-        eyebrow="MAKE EVERY WATT COUNT"
         title="Consumption"
-        description="Understand your usage. Stay in control of your energy."
         action={
           <ExportButton
             path={`/reports/export?range=${period}`}
@@ -47,7 +45,7 @@ export default function Consumption() {
         </div>
         {result.loading ? <Loading /> : <SummaryStats summary={result.data?.summary} />}
         <div className="summary-footnote">
-          Peak recorded at {time(result.data?.summary.peak_time)} · All costs are estimates at{' '}
+          Peak {time(result.data?.summary.peak_time)} · Estimated cost at{' '}
           {money(result.data?.summary.tariff)} / kWh
         </div>
       </Panel>
@@ -60,7 +58,7 @@ export default function Consumption() {
                 ? 'Seven-day buckets across the last 30 days'
                 : view === 'monthly'
                   ? 'Calendar-month buckets across the last 30 days'
-                  : 'Measured energy, in kilowatt-hours'}
+                  : 'Energy in kWh'}
             </p>
           </div>
           <Tabs

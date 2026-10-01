@@ -85,8 +85,8 @@ export class BleConnection {
   private savedIdKey = 'wattwise-ble-device'
   constructor(
     private onState: (state: BleState) => void,
-    private onReading: (reading: Reading) => void,
-    private onDeviceChanged: () => void = () => {},
+    private onReading: (reading: Reading, deviceId: string) => void,
+    private onDeviceChanged: (deviceId: string) => void = () => {},
   ) {}
   async restore() {
     if (!supportsBluetooth() || !navigator.bluetooth.getDevices) return
@@ -105,7 +105,8 @@ export class BleConnection {
   private onValue = (event: Event) => {
     if (this.disposed || !this.device?.gatt?.connected) return
     const value = (event.target as BluetoothRemoteGATTCharacteristic).value
-    if (value) for (const reading of this.decoder.push(value)) this.onReading(reading)
+    if (value)
+      for (const reading of this.decoder.push(value)) this.onReading(reading, this.device.id)
   }
   private onDisconnect = () => {
     this.generation++
@@ -139,7 +140,7 @@ export class BleConnection {
               optionalServices: [BLE_SERVICE],
             })
       if (this.disposed || generation !== this.generation) return
-      if (this.device && this.device.id !== device.id) this.onDeviceChanged()
+      if (this.device?.id !== device.id) this.onDeviceChanged(device.id)
       this.characteristic?.removeEventListener('characteristicvaluechanged', this.onValue)
       this.device?.removeEventListener('gattserverdisconnected', this.onDisconnect)
       this.device?.gatt?.disconnect()

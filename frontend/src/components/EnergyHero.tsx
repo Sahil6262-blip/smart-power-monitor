@@ -11,7 +11,6 @@ export function EnergyHero() {
       <div className={`energy-flow-panel flow-${status}`}>
         <div className="flow-heading">
           <div>
-            <span className="eyebrow">THE BIG PICTURE</span>
             <h2>Your energy, connected.</h2>
           </div>
           <span className="flow-source">

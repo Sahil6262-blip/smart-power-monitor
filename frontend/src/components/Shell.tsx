@@ -125,9 +125,7 @@ export function Shell() {
           <span className="brand-mark">
             <Zap size={23} fill="currentColor" />
           </span>
-          <span className="brand-text">
-            wattwise<small>ENERGY INTELLIGENCE</small>
-          </span>
+          <span className="brand-text">wattwise</span>
         </NavLink>
         <button
           className="mobile-close icon-button"
@@ -145,7 +143,6 @@ export function Shell() {
           </span>
           <div>
             <strong>Main power supply</strong>
-            <span>Your energy workspace</span>
           </div>
           <ChevronDown size={14} />
         </NavLink>
@@ -243,7 +240,6 @@ export function Shell() {
         </header>
         <main id="main-content" tabIndex={-1}>
           <div className="workspace-meta">
-            <span>SMART POWER MONITORING</span>
             <span>
               {date(now)} <span>·</span> {time(now, true)}{' '}
               <span className="clock-zone">{device?.timezone || 'Asia/Kolkata'}</span>
@@ -263,9 +259,6 @@ export function Shell() {
           <span>
             <span className={`status-dot ${status === 'live' ? 'green-text' : 'amber-text'}`} />
             {status === 'live' ? 'Connected to your energy' : 'Ready for your next reading'}
-          </span>
-          <span>
-            Wattwise <span className="footer-divider">/</span> Designed for a brighter tomorrow.
           </span>
           <a href={docsUrl} target="_blank" rel="noreferrer">
             <CircleHelp size={13} /> API documentation <ArrowUpRight size={12} />

@@ -30,7 +30,7 @@ const tooltipStyle = {
   borderRadius: 12,
   boxShadow: '0 10px 30px #26396918',
   color: '#25324b',
-  fontSize: 12,
+  fontSize: 13,
 }
 
 export function TrendChart({
@@ -88,7 +88,7 @@ export function TrendChart({
             axisLine={false}
             tickLine={false}
             minTickGap={42}
-            tick={{ fill: '#7a879c', fontSize: 10 }}
+            tick={{ fill: '#526178', fontSize: 12, fontWeight: 500 }}
             dy={10}
           />
           <YAxis
@@ -97,7 +97,7 @@ export function TrendChart({
             }
             axisLine={false}
             tickLine={false}
-            tick={{ fill: '#7a879c', fontSize: 10 }}
+            tick={{ fill: '#526178', fontSize: 12, fontWeight: 500 }}
             tickFormatter={(v) =>
               number(v, parameter === 'power_factor' || parameter === 'current' ? 2 : 0)
             }
@@ -160,10 +160,14 @@ export function EnergyChart({
             axisLine={false}
             tickLine={false}
             minTickGap={26}
-            tick={{ fill: '#7a879c', fontSize: 10 }}
+            tick={{ fill: '#526178', fontSize: 12, fontWeight: 500 }}
             dy={10}
           />
-          <YAxis axisLine={false} tickLine={false} tick={{ fill: '#7a879c', fontSize: 10 }} />
+          <YAxis
+            axisLine={false}
+            tickLine={false}
+            tick={{ fill: '#526178', fontSize: 12, fontWeight: 500 }}
+          />
           <Tooltip
             cursor={{ fill: '#4263eb06' }}
             contentStyle={tooltipStyle}

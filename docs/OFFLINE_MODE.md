@@ -138,7 +138,8 @@ Use browser DevTools to block Render WebSocket/API requests for a browser-only o
 BLE normalizes into the existing six measurement fields with `source: 'ble'`. Browser receipt time and timezone label local plots.
 
 - **Total energy** is still the meter's cumulative counter. **Bluetooth session energy** is the observed counter delta during this tab's session, not a cloud daily total. Gaps of at least 10 seconds/disconnects establish a new baseline, excluding unseen usage. Counter resets use the same nonnegative reset convention as cloud calculations.
-- Keep up to 3,600 readings and 250 alerts in tab memory, with the existing 300-point live chart window. Another selected meter resets the local session. Reload/close clears local history.
+- BLE readings are stored in IndexedDB database `wattwise-offline`, store `readings` (version 1), with `source: 'ble'`, `synced: false`, device ID, timestamp, and all six measurements. Each successful write atomically retains the newest 10,000 records across meters. Exact repeated device/timestamp/measurement records collapse; equal measurements at different times remain distinct. Records are never uploaded or removed merely because cloud reconnects.
+- Saved readings restore into offline charts/history for the selected meter across reload/browser restart. Live cards, session calculations, and up to 250 local alerts still start fresh; historical readings are not replayed as live events. The live chart keeps its existing 300-point window. Storage failure preserves live rendering/in-memory history and shows a message in the existing connection panel. Browser site-data clearing/eviction can remove saved records. IndexedDB is separate from the service-worker asset cache.
 - Six electrical threshold rules run locally using last-fetched settings/tariff, or backend defaults when unavailable. Local acknowledge/resolve affects local alerts only. Settings are read-only offline; cloud controls resume on recovery.
 - Session cost and health are labeled local estimates. Health excludes monthly budget. Cloud monthly budget, consumption reports, exports, and cloud predictions are not fabricated; views explain when cloud history is needed.
 - **No BLE replay/upload to Supabase** and no offline write queue. Cloud history remains what the ESP32 uploaded through its existing HTTPS path. Source switching does not merge duplicate BLE/cloud points or claim local readings were synchronized.
@@ -155,7 +156,7 @@ References: [Chrome Web Bluetooth](https://developer.chrome.com/docs/capabilitie
 
 - Full firmware compile **passed** with Arduino-ESP32 **2.0.17**, PZEM004Tv30 **1.2.1**, ESP32 Dev Module, Huge APP partition: **1,795,629 / 3,145,728 bytes (57%)** flash; **62,724 / 327,680 bytes (19%)** static RAM. This measures build/static allocation, not runtime heap or radio stability.
 - Production TypeScript/Vite/PWA build passed; precache includes 33 static assets, fonts, and lazy routes.
-- **12 Playwright tests passed** against production preview: offline reload/direct/unvisited routes, switching/recovery, stale open sockets, authorized/manual reconnect, unsupported/cancelled selection, malformed packets, local controls, binary protocol/100A/rollover, energy gaps/resets, existing desktop/tablet/mobile navigation and cloud interactions.
+- **16 Playwright tests passed** against production preview: offline reload/direct/unvisited routes, switching/recovery, stale open sockets, authorized/manual reconnect, unsupported/cancelled selection, malformed packets, local controls, binary protocol/100A/rollover, energy gaps/resets, existing desktop/tablet/mobile navigation and cloud interactions. IndexedDB checks cover offline reload/reopening, unsynced retention after cloud recovery, denied/full storage, exact duplicates, device isolation, and the 10,000-record limit using real browser transactions.
 - C++ packet test passed with matching frontend golden bytes, 100A current, invalid/nonfinite values.
 - Reconstructed-original source check passed for preservation of supplied firmware.
 - Actual flashing, PZEM/radio notifications, and released Vercel/Render behavior remain hardware/release checks. Tests mock GATT and cloud transports; service-worker caching is real.
@@ -222,11 +223,13 @@ frontend/src/components/ConnectionControls.tsx
 frontend/src/offline.css
 frontend/src/services/ble.ts
 frontend/src/services/offlineSession.ts
+frontend/src/services/offlineStorage.ts
 frontend/src/services/offlineResources.ts
 frontend/src/services/offlineSettings.ts
 frontend/tests/helpers/cloud.ts
 frontend/tests/helpers/bluetooth.ts
 frontend/tests/offline-unit.spec.ts
+frontend/tests/offline-storage.spec.ts
 frontend/tests/offline.spec.ts
 ~~~
 

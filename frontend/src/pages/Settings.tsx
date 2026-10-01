@@ -144,11 +144,7 @@ export default function Settings() {
   }
   return (
     <div className="page-enter">
-      <PageHeading
-        eyebrow="MAKE IT YOURS"
-        title="Settings"
-        description="Your limits, your tariff, your energy goals."
-      />
+      <PageHeading title="Settings" />
       {result.error && <ErrorState message={result.error} retry={result.refresh} />}{' '}
       {result.loading && !result.data ? (
         <Loading />

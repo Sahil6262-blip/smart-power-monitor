@@ -4,7 +4,16 @@ import { useRegisterSW } from 'virtual:pwa-register/react'
 import { useEffect } from 'react'
 
 export function ConnectionControls() {
-  const { mode, status, cloudAvailable, ble, connectBle, disconnectBle, settingsOrigin } = useLive()
+  const {
+    mode,
+    status,
+    cloudAvailable,
+    ble,
+    connectBle,
+    disconnectBle,
+    settingsOrigin,
+    offlineStorageError,
+  } = useLive()
   const {
     offlineReady: [offlineReady, setOfflineReady],
     needRefresh: [needRefresh],
@@ -89,15 +98,18 @@ export function ConnectionControls() {
       </div>
       {local && (
         <p className="offline-explanation">
-          Bluetooth session only • Readings and alerts stay in this tab and are not uploaded.
-          Session cost and health use {settingsOrigin === 'defaults' ? 'default' : 'last saved'}{' '}
-          thresholds and tariff. Monthly totals and cloud reports return when cloud reconnects.
+          {offlineStorageError
+            ? 'Reading storage unavailable; new history may be lost on reload. '
+            : 'Up to 10,000 readings saved locally. '}
+          Not uploaded. Alerts reset on reload. Cost and health use{' '}
+          {settingsOrigin === 'defaults' ? 'default' : 'saved'} settings. Monthly reports need
+          cloud.
         </p>
       )}
       {ble.status === 'unsupported' && (
         <p className="offline-explanation">
-          This browser does not support Web Bluetooth. Use a supported Chrome or Edge browser on
-          Android or desktop. Installing the PWA does not add Bluetooth support to Safari/iOS.
+          This browser does not support Web Bluetooth. Use compatible Chrome or Edge on Android or
+          desktop. Safari/iOS is unsupported.
         </p>
       )}
       {ble.error && (
@@ -107,7 +119,7 @@ export function ConnectionControls() {
       )}
       {needRefresh && (
         <div className="pwa-update">
-          An app update is ready. Reloading ends the current Bluetooth session.
+          Update ready. Reloading disconnects Bluetooth.
           <button className="button small" onClick={() => void updateServiceWorker(true)}>
             Update and reload
           </button>

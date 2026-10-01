@@ -8,22 +8,19 @@ export function Panel({ children, className = '' }: { children: ReactNode; class
   return <section className={`panel ${className}`}>{children}</section>
 }
 export function PageHeading({
-  eyebrow,
   title,
   description,
   action,
 }: {
-  eyebrow: string
   title: string
-  description: string
+  description?: string
   action?: ReactNode
 }) {
   return (
     <div className="page-heading">
       <div>
-        <div className="eyebrow">{eyebrow}</div>
         <h1>{title}</h1>
-        <p>{description}</p>
+        {description && <p>{description}</p>}
       </div>
       <div className="heading-actions">{action}</div>
     </div>

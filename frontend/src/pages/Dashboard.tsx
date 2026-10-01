@@ -69,9 +69,7 @@ export default function Dashboard() {
   return (
     <div className="page-enter dashboard-page">
       <PageHeading
-        eyebrow="ENERGY INTELLIGENCE"
         title="Energy overview"
-        description="A little perspective. A lot more control."
         action={
           <ExportButton
             path="/reports/export?range=today"
@@ -105,7 +103,6 @@ export default function Dashboard() {
         <Panel className="power-panel">
           <div className="panel-title">
             <div>
-              <span className="eyebrow">DEMAND, OVER TIME</span>
               <h2>Live power trend</h2>
             </div>
             <Tabs
@@ -177,7 +174,6 @@ export default function Dashboard() {
         <Panel className="system-panel">
           <div className="panel-title">
             <div>
-              <span className="eyebrow">PEACE OF MIND</span>
               <h2>System health</h2>
             </div>
             <ShieldCheck
@@ -222,7 +218,6 @@ export default function Dashboard() {
         <Panel className="recent-panel">
           <div className="panel-title">
             <div>
-              <span className="eyebrow">YOUR ACTIVITY LOG</span>
               <h2>
                 Recent events{' '}
                 <Badge>{latest?.active_alert_count ?? device?.active_alerts ?? '—'} open</Badge>

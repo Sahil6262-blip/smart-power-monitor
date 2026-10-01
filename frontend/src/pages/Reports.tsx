@@ -23,9 +23,7 @@ export default function Reports() {
   return (
     <div className="page-enter">
       <PageHeading
-        eyebrow="FROM READINGS TO UNDERSTANDING"
         title="Energy reports"
-        description="A concise, exportable view of how your energy was used."
         action={
           query && <ExportButton path={`/reports/export?${query}`} filename="energy-report.csv" />
         }
